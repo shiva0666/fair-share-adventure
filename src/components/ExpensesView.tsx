@@ -81,7 +81,21 @@ interface ExpenseItemProps {
 }
 
 function ExpenseItem({ expense, participants }: ExpenseItemProps) {
-  const paidByName = getParticipantName(expense.paidBy, participants);
+  // Modify this function to handle both string and string[] for paidBy
+  const getPaidByName = (paidBy: string | string[], participants: Trip["participants"]) => {
+    if (Array.isArray(paidBy)) {
+      // Handle array of payer IDs
+      const payerNames = paidBy.map(id => 
+        getParticipantName(id, participants)
+      );
+      return payerNames.join(', ');
+    } else {
+      // Handle single payer ID
+      return getParticipantName(paidBy, participants);
+    }
+  };
+
+  const paidByName = getPaidByName(expense.paidBy, participants);
   const shareAmount = expense.amount / expense.splitBetween.length;
   
   const getCategoryIcon = (category: string) => {

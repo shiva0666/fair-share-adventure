@@ -7,12 +7,15 @@ export interface Expense {
   date: string;
   paidBy: string;
   splitBetween: string[];
+  notes?: string;
 }
 
 export interface Participant {
   id: string;
   name: string;
   balance: number;
+  email?: string;
+  phone?: string;
 }
 
 export interface Trip {
@@ -22,10 +25,28 @@ export interface Trip {
   endDate: string;
   participants: Participant[];
   expenses: Expense[];
+  status: 'active' | 'completed';
+  createdAt: string;
 }
 
 export interface Settlement {
   from: string;
   to: string;
   amount: number;
+  settled?: boolean;
+}
+
+export type ExpenseCategory = 
+  | 'food' 
+  | 'accommodation' 
+  | 'transportation' 
+  | 'activities' 
+  | 'shopping' 
+  | 'other';
+
+export interface DashboardSummary {
+  totalTrips: number;
+  totalExpenses: number;
+  activeTrips: number;
+  tripFriends: number;
 }

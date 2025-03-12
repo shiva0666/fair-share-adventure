@@ -1,54 +1,80 @@
 
 import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { TripSummary } from "@/components/TripSummary";
+import { ExpensesView } from "@/components/ExpensesView";
+import { SettlementView } from "@/components/SettlementView";
+import { TripParticipants } from "@/components/TripParticipants";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Download } from "lucide-react";
-
-const mockTrip = {
-  id: "1",
-  name: "hyd",
-  startDate: "3/12/2025",
-  endDate: "3/12/2025",
-  participants: [
-    { id: "1", name: "a", balance: 0 },
-    { id: "2", name: "b", balance: 0 },
-    { id: "3", name: "c", balance: 0 },
-  ],
-  expenses: [],
-};
+import { getTripById } from "@/services/tripService";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TripDetail = () => {
-  const [trip] = useState(mockTrip);
+  const { id } = useParams<{ id: string }>();
+  
+  const { data: trip, isLoading, error, refetch } = useQuery({
+    queryKey: ["trip", id],
+    queryFn: () => getTripById(id || ""),
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return <LoadingState />;
+  }
+
+  if (error || !trip) {
+    return <ErrorState />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar tripName={trip.name} />
-      <main className="container mx-auto p-6 grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">
-                  Day 1 - {trip.startDate}
-                </h2>
-                <p>Total: ₹0.00</p>
-              </div>
-              <div className="text-center py-8 text-muted-foreground">
-                No expenses added yet.
-              </div>
-              <Button className="w-full">
-                <Plus className="mr-2 h-4 w-4" /> Add Expense
-              </Button>
-            </CardContent>
-          </Card>
-          <Button className="w-full" variant="outline">
-            <Plus className="mr-2 h-4 w-4" /> Add Day
-          </Button>
+      <main className="container mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
+          <ExpensesView trip={trip} onRefresh={() => refetch()} />
         </div>
         <div className="space-y-6">
           <TripSummary trip={trip} />
+          <TripParticipants trip={trip} />
+          <SettlementView trip={trip} />
+        </div>
+      </main>
+    </div>
+  );
+};
+
+const LoadingState = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <main className="container mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
+          <Skeleton className="h-[400px] w-full rounded-lg" />
+        </div>
+        <div className="space-y-6">
+          <Skeleton className="h-[300px] w-full rounded-lg" />
+          <Skeleton className="h-[200px] w-full rounded-lg" />
+        </div>
+      </main>
+    </div>
+  );
+};
+
+const ErrorState = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <main className="container mx-auto p-6">
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold mb-2">Trip Not Found</h2>
+          <p className="text-muted-foreground mb-6">
+            The trip you're looking for doesn't exist or has been deleted.
+          </p>
+          <Button asChild>
+            <a href="/">Return to Dashboard</a>
+          </Button>
         </div>
       </main>
     </div>

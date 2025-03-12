@@ -1,14 +1,16 @@
 
 import { Button } from "@/components/ui/button";
-import { Download, LogOut, Mail } from "lucide-react";
+import { Download, LogOut, Mail, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Trip } from "@/types";
 import { downloadTripReport } from "@/utils/expenseCalculator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTrip?: Trip }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, logoutUser } = useAuth();
 
   const handleDownloadReport = () => {
     if (currentTrip) {
@@ -51,10 +53,19 @@ export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTr
           </>
         )}
         <div className="flex items-center space-x-2 ml-4">
-          <span>shiva</span>
-          <Button variant="outline" size="sm">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          {user ? (
+            <>
+              <span>{user.name}</span>
+              <Button variant="outline" size="sm" onClick={logoutUser}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => navigate("/login")}>
+              <User className="mr-2 h-4 w-4" />
+              Login
+            </Button>
+          )}
         </div>
       </div>
     </nav>

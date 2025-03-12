@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { Dashboard } from "@/components/Dashboard";
 import { CreateTripDialog } from "@/components/CreateTripDialog";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const Index = () => {
   return (

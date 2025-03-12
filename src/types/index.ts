@@ -5,8 +5,9 @@ export interface Expense {
   amount: number;
   category: string;
   date: string;
-  paidBy: string;
+  paidBy: string[] | string; // Now supports multiple payers
   splitBetween: string[];
+  splitAmounts?: Record<string, number>; // Custom split amounts by participant id
   notes?: string;
 }
 

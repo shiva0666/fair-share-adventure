@@ -30,7 +30,7 @@ const TripDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar tripName={trip.name} />
+      <Navbar tripName={trip.name} currentTrip={trip} />
       <main className="container mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           <ExpensesView trip={trip} onRefresh={() => refetch()} />

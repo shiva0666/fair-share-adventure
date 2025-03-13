@@ -55,7 +55,12 @@ export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTr
         <div className="flex items-center space-x-2 ml-4">
           {user ? (
             <>
-              <span>{user.name}</span>
+              <div className="flex flex-col items-end">
+                <span className="text-sm font-medium">{user.name}</span>
+                {user.phoneNumber && (
+                  <span className="text-xs text-muted-foreground">{user.phoneNumber}</span>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={logoutUser}>
                 <LogOut className="h-4 w-4" />
               </Button>

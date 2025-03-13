@@ -7,12 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Github, Mail, User } from "lucide-react";
+import { Eye, EyeOff, Github, Mail, Phone, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+
+const phoneRegex = /^(\+\d{1,3})?\s?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/;
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
+  phoneNumber: z.string()
+    .refine(val => val === '' || phoneRegex.test(val), {
+      message: "Please enter a valid phone number",
+    })
+    .optional(),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
   confirmPassword: z.string().min(8, { message: "Password must be at least 8 characters" }),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -32,6 +39,7 @@ const SignupForm = () => {
     defaultValues: {
       name: "",
       email: "",
+      phoneNumber: "",
       password: "",
       confirmPassword: "",
     },
@@ -39,7 +47,7 @@ const SignupForm = () => {
 
   const onSubmit = async (data: SignupValues) => {
     try {
-      await registerUser(data.email, data.password, data.name);
+      await registerUser(data.email, data.password, data.name, data.phoneNumber);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -99,6 +107,26 @@ const SignupForm = () => {
         </div>
         {errors.email && (
           <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+        <div className="relative">
+          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="phoneNumber"
+            placeholder="+1 (555) 123-4567"
+            type="tel"
+            autoCapitalize="none"
+            autoComplete="tel"
+            autoCorrect="off"
+            className="pl-10"
+            {...register("phoneNumber")}
+          />
+        </div>
+        {errors.phoneNumber && (
+          <p className="text-sm text-destructive">{errors.phoneNumber.message}</p>
         )}
       </div>
 

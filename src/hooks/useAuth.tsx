@@ -7,14 +7,15 @@ interface User {
   id: string;
   name: string;
   email: string;
+  phoneNumber?: string;
   photoURL?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginUser: (email: string, password: string) => Promise<void>;
-  registerUser: (email: string, password: string, name: string) => Promise<void>;
+  loginUser: (emailOrPhone: string, password: string) => Promise<void>;
+  registerUser: (email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
   logoutUser: () => void;
   loginWithGoogle: () => Promise<void>;
 }
@@ -36,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const registerUser = async (email: string, password: string, name: string) => {
+  const registerUser = async (email: string, password: string, name: string, phoneNumber?: string) => {
     setLoading(true);
     
     try {
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: Math.random().toString(36).substr(2, 9),
         name,
         email,
+        phoneNumber,
       };
       
       // Save to localStorage
@@ -68,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginUser = async (email: string, password: string) => {
+  const loginUser = async (emailOrPhone: string, password: string) => {
     setLoading(true);
     
     try {
@@ -76,11 +78,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simulating API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // For mock purposes, we'll determine if the input is an email or phone number
+      const isEmail = emailOrPhone.includes('@');
+      
       // Create a mock user
       const mockUser: User = {
         id: Math.random().toString(36).substr(2, 9),
-        name: email.split('@')[0],
-        email,
+        name: isEmail ? emailOrPhone.split('@')[0] : `User${Math.floor(Math.random() * 1000)}`,
+        email: isEmail ? emailOrPhone : `user${Math.floor(Math.random() * 1000)}@example.com`,
+        phoneNumber: !isEmail ? emailOrPhone : undefined,
       };
       
       // Save to localStorage

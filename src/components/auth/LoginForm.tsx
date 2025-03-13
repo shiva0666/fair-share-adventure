@@ -10,8 +10,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Github, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
+const phoneRegex = /^(\+\d{1,3})?\s?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/;
+
 const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
+  emailOrPhone: z.string().refine(val => {
+    // Check if it's a valid email or phone number
+    return val.includes('@') || phoneRegex.test(val);
+  }, {
+    message: "Please enter a valid email address or phone number",
+  }),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
 });
 
@@ -25,14 +32,14 @@ const LoginForm = () => {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      emailOrPhone: "",
       password: "",
     },
   });
 
   const onSubmit = async (data: LoginValues) => {
     try {
-      await loginUser(data.email, data.password);
+      await loginUser(data.emailOrPhone, data.password);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -57,22 +64,22 @@ const LoginForm = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="emailOrPhone">Email or Phone Number</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="email"
-            placeholder="name@example.com"
-            type="email"
+            id="emailOrPhone"
+            placeholder="name@example.com or +1 (555) 123-4567"
+            type="text"
             autoCapitalize="none"
-            autoComplete="email"
+            autoComplete="email tel"
             autoCorrect="off"
             className="pl-10"
-            {...register("email")}
+            {...register("emailOrPhone")}
           />
         </div>
-        {errors.email && (
-          <p className="text-sm text-destructive">{errors.email.message}</p>
+        {errors.emailOrPhone && (
+          <p className="text-sm text-destructive">{errors.emailOrPhone.message}</p>
         )}
       </div>
       <div className="grid gap-2">

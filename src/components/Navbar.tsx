@@ -1,116 +1,54 @@
 
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Download, LogOut, Mail, User } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { Trip } from "@/types";
-import { downloadTripReport } from "@/utils/expenseCalculator";
-import { useToast } from "@/hooks/use-toast";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 import { useAuth } from "@/hooks/useAuth";
-import { sendTripReportEmail } from "@/utils/emailUtils";
-import { useState } from "react";
+import { LogOut, UserCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTrip?: Trip }) {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user, logoutUser } = useAuth();
-  const [isSending, setIsSending] = useState(false);
-
-  const handleDownloadReport = () => {
-    if (currentTrip) {
-      downloadTripReport(currentTrip);
-      toast({
-        title: "Success",
-        description: "Trip report has been downloaded",
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "Unable to generate report. Trip data not available.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEmailReport = async () => {
-    if (!currentTrip) {
-      toast({
-        title: "Error",
-        description: "Unable to send report. Trip data not available.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSending(true);
-    try {
-      const result = await sendTripReportEmail(currentTrip);
-      if (result) {
-        toast({
-          title: "Success",
-          description: "Trip report has been sent to your email",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send email report. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSending(false);
-    }
-  };
+export const Navbar = () => {
+  const { user, logout } = useAuth();
 
   return (
-    <nav className="flex items-center justify-between p-4 bg-white border-b">
-      <div className="flex items-center space-x-4">
-        <Link to="/" className="text-xl font-semibold">
+    <header className="bg-background border-b sticky top-0 z-30">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <Link to="/dashboard" className="text-xl font-semibold text-foreground">
           DiviTrip
         </Link>
-        {tripName && <span className="text-xl">{tripName}</span>}
-      </div>
-      <div className="flex items-center space-x-2">
-        {tripName && (
-          <>
-            <Button variant="outline" size="sm" onClick={() => navigate("/")}>
-              View All Trips
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleEmailReport}
-              disabled={isSending}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              {isSending ? "Sending..." : "Email Report"}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleDownloadReport}>
-              <Download className="mr-2 h-4 w-4" />
-              Download Trip Report
-            </Button>
-          </>
-        )}
-        <div className="flex items-center space-x-2 ml-4">
-          {user ? (
-            <>
-              <div className="flex flex-col items-end">
-                <span className="text-sm font-medium">{user.name}</span>
-                {user.phoneNumber && (
-                  <span className="text-xs text-muted-foreground">{user.phoneNumber}</span>
-                )}
-              </div>
-              <Button variant="outline" size="sm" onClick={logoutUser}>
-                <LogOut className="h-4 w-4" />
+        
+        <div className="flex items-center space-x-4">
+          <ModeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="User menu">
+                <UserCircle className="h-5 w-5" />
               </Button>
-            </>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => navigate("/login")}>
-              <User className="mr-2 h-4 w-4" />
-              Login
-            </Button>
-          )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Link to="/profile" className="w-full">Profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link to="/settings" className="w-full">Settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-    </nav>
+    </header>
   );
-}
+};

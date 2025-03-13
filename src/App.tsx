@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import TripDetail from "./pages/TripDetail";
 import Auth from "./pages/Auth";
+import LandingPage from "./pages/LandingPage";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -21,9 +22,10 @@ const App = () => {
         <AuthProvider>
           <TooltipProvider>
             <Routes>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Auth />} />
               <Route 
-                path="/" 
+                path="/dashboard" 
                 element={
                   <ProtectedRoute>
                     <Index />

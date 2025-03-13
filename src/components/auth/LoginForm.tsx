@@ -24,7 +24,7 @@ const formSchema = z.object({
 
 const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { loginUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -41,7 +41,7 @@ const LoginForm = () => {
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      await login(values.email, values.password);
+      await loginUser(values.email, values.password);
       
       toast({
         title: "Login successful",

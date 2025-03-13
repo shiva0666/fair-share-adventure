@@ -12,9 +12,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Trip } from "@/types";
 
-export const Navbar = () => {
-  const { user, logout } = useAuth();
+interface NavbarProps {
+  tripName?: string;
+  currentTrip?: Trip;
+}
+
+export const Navbar = ({ tripName, currentTrip }: NavbarProps = {}) => {
+  const { user, logoutUser } = useAuth();
 
   return (
     <header className="bg-background border-b sticky top-0 z-30">
@@ -41,7 +47,7 @@ export const Navbar = () => {
                 <Link to="/settings" className="w-full">Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
+              <DropdownMenuItem onClick={logoutUser}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Logout</span>
               </DropdownMenuItem>

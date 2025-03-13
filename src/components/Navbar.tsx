@@ -6,11 +6,14 @@ import { Trip } from "@/types";
 import { downloadTripReport } from "@/utils/expenseCalculator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { sendTripReportEmail } from "@/utils/emailUtils";
+import { useState } from "react";
 
 export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTrip?: Trip }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, logoutUser } = useAuth();
+  const [isSending, setIsSending] = useState(false);
 
   const handleDownloadReport = () => {
     if (currentTrip) {
@@ -28,6 +31,36 @@ export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTr
     }
   };
 
+  const handleEmailReport = async () => {
+    if (!currentTrip) {
+      toast({
+        title: "Error",
+        description: "Unable to send report. Trip data not available.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const result = await sendTripReportEmail(currentTrip);
+      if (result) {
+        toast({
+          title: "Success",
+          description: "Trip report has been sent to your email",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send email report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <nav className="flex items-center justify-between p-4 bg-white border-b">
       <div className="flex items-center space-x-4">
@@ -42,9 +75,14 @@ export function Navbar({ tripName, currentTrip }: { tripName?: string; currentTr
             <Button variant="outline" size="sm" onClick={() => navigate("/")}>
               View All Trips
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleEmailReport}
+              disabled={isSending}
+            >
               <Mail className="mr-2 h-4 w-4" />
-              Email Report
+              {isSending ? "Sending..." : "Email Report"}
             </Button>
             <Button variant="ghost" size="sm" onClick={handleDownloadReport}>
               <Download className="mr-2 h-4 w-4" />

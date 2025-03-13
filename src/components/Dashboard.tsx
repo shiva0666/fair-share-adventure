@@ -1,15 +1,23 @@
-
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllTrips, getDashboardSummary } from "@/services/tripService";
+import { getAllTrips, getDashboardSummary, deleteTrip, updateTripStatus } from "@/services/tripService";
 import { Trip } from "@/types";
 import { calculateTotalExpenses, formatCurrency } from "@/utils/expenseCalculator";
-import { Users, Clock, Receipt, DollarSign } from "lucide-react";
+import { Users, Clock, Receipt, DollarSign, Trash, CheckSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
+import { useState } from "react";
+import { ConfirmationDialog } from "./ConfirmationDialog";
+import { useToast } from "@/hooks/use-toast";
 
 export function Dashboard() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+
   const { data: trips, isLoading: isTripsLoading } = useQuery({
     queryKey: ["trips"],
     queryFn: getAllTrips
@@ -26,6 +34,70 @@ export function Dashboard() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5)
     : [];
+
+  const handleDeleteTrip = async () => {
+    if (!selectedTripId) return;
+    
+    try {
+      await deleteTrip(selectedTripId);
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      
+      toast({
+        title: "Trip deleted",
+        description: "The trip has been successfully deleted",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete trip",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setSelectedTripId(null);
+    }
+  };
+
+  const handleCompleteTrip = async () => {
+    if (!selectedTripId) return;
+    
+    try {
+      await updateTripStatus(selectedTripId, "completed");
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      
+      toast({
+        title: "Trip completed",
+        description: "The trip has been marked as completed",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update trip status",
+        variant: "destructive",
+      });
+    } finally {
+      setCompleteDialogOpen(false);
+      setSelectedTripId(null);
+    }
+  };
+
+  const openDeleteDialog = (tripId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedTripId(tripId);
+    setDeleteDialogOpen(true);
+  };
+
+  const openCompleteDialog = (tripId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedTripId(tripId);
+    setCompleteDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -88,12 +160,36 @@ export function Dashboard() {
           ) : (
             <div className="space-y-4">
               {recentTrips.map((trip) => (
-                <TripRow key={trip.id} trip={trip} />
+                <TripRow 
+                  key={trip.id} 
+                  trip={trip} 
+                  onDelete={openDeleteDialog}
+                  onComplete={openCompleteDialog}
+                />
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteTrip}
+        title="Delete Trip"
+        description="Are you sure you want to delete this trip? This action cannot be undone."
+        confirmLabel="Delete"
+      />
+
+      <ConfirmationDialog
+        isOpen={completeDialogOpen}
+        onClose={() => setCompleteDialogOpen(false)}
+        onConfirm={handleCompleteTrip}
+        title="Complete Trip"
+        description="Are you sure you want to mark this trip as completed?"
+        confirmLabel="Complete"
+      />
     </div>
   );
 }
@@ -142,12 +238,18 @@ function SummarySkeleton() {
   );
 }
 
-function TripRow({ trip }: { trip: Trip }) {
+interface TripRowProps {
+  trip: Trip;
+  onDelete: (tripId: string, event: React.MouseEvent) => void;
+  onComplete: (tripId: string, event: React.MouseEvent) => void;
+}
+
+function TripRow({ trip, onDelete, onComplete }: TripRowProps) {
   const totalAmount = calculateTotalExpenses(trip.expenses);
   
   return (
-    <Link to={`/trip/${trip.id}`}>
-      <div className="flex items-center justify-between p-4 hover:bg-muted rounded-lg transition-colors">
+    <div className="flex items-center justify-between p-4 hover:bg-muted rounded-lg transition-colors">
+      <Link to={`/trip/${trip.id}`} className="flex-1">
         <div className="flex items-center gap-4">
           <div className="rounded-full bg-primary/10 p-2">
             <Clock className="h-5 w-5 text-primary" />
@@ -159,21 +261,45 @@ function TripRow({ trip }: { trip: Trip }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="font-medium">{formatCurrency(totalAmount)}</p>
-            <p className="text-sm text-muted-foreground">
-              {trip.participants.length} {trip.participants.length === 1 ? 'person' : 'people'}
-            </p>
-          </div>
-          <div className={`rounded-full px-2 py-1 text-xs ${
-            trip.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-          }`}>
-            {trip.status === 'active' ? 'Active' : 'Completed'}
-          </div>
+      </Link>
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <p className="font-medium">{formatCurrency(totalAmount)}</p>
+          <p className="text-sm text-muted-foreground">
+            {trip.participants.length} {trip.participants.length === 1 ? 'person' : 'people'}
+          </p>
+        </div>
+        <div className={`rounded-full px-2 py-1 text-xs ${
+          trip.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {trip.status === 'active' ? 'Active' : 'Completed'}
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex space-x-2">
+          {trip.status === 'active' && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={(e) => onComplete(trip.id, e)}
+              className="text-green-600 border-green-600 hover:bg-green-50"
+            >
+              <CheckSquare className="h-4 w-4" />
+              <span className="sr-only">Complete</span>
+            </Button>
+          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={(e) => onDelete(trip.id, e)}
+            className="text-red-600 border-red-600 hover:bg-red-50"
+          >
+            <Trash className="h-4 w-4" />
+            <span className="sr-only">Delete</span>
+          </Button>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

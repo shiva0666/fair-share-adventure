@@ -195,6 +195,28 @@ export const updateTripStatus = async (
   });
 };
 
+// Delete a trip
+export const deleteTrip = async (tripId: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const trips = getStoredTrips();
+        const tripIndex = trips.findIndex(trip => trip.id === tripId);
+        
+        if (tripIndex === -1) {
+          throw new Error('Trip not found');
+        }
+        
+        const updatedTrips = trips.filter(trip => trip.id !== tripId);
+        saveTrips(updatedTrips);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
+};
+
 // Get dashboard summary
 export const getDashboardSummary = async (): Promise<DashboardSummary> => {
   return new Promise(resolve => {
@@ -223,5 +245,16 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
         tripFriends: allParticipantIds.size,
       });
     }, 500);
+  });
+};
+
+// Email trip report
+export const emailTripReport = async (trip: Trip, email: string): Promise<void> => {
+  return new Promise((resolve) => {
+    // In a real app, this would call an API to send the email
+    console.log(`Sending trip report for ${trip.name} to ${email}`);
+    setTimeout(() => {
+      resolve();
+    }, 1000);
   });
 };

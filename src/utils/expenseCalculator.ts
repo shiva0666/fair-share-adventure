@@ -280,6 +280,6 @@ export const downloadTripReport = (trip: Trip): void => {
   // Clean up
   setTimeout(() => {
     document.body.removeChild(a);
-    URL.revoObjectURL(url);
+    URL.revokeObjectURL(url);
   }, 0);
 };

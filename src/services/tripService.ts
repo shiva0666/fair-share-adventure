@@ -88,10 +88,10 @@ const initialTrips = mockTrips.map(trip => updateParticipantBalances(trip));
 // Local storage key
 const TRIPS_STORAGE_KEY = 'divitrip_trips';
 
-// Load trips from local storage or use mock data
+// Load trips from local storage or use empty array (not mock data)
 const getStoredTrips = (): Trip[] => {
   const storedTrips = localStorage.getItem(TRIPS_STORAGE_KEY);
-  return storedTrips ? JSON.parse(storedTrips) : initialTrips;
+  return storedTrips ? JSON.parse(storedTrips) : [];
 };
 
 // Save trips to local storage

@@ -39,18 +39,7 @@ const Auth = () => {
               </TabsContent>
             </Tabs>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  OR
-                </span>
-              </div>
-            </div>
-          </CardFooter>
+          {/* Footer removed to eliminate the "OR" text */}
         </Card>
       </div>
     </div>

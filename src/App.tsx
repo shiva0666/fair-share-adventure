@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import TripDetail from "./pages/TripDetail";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
+import Settings from "./pages/Settings";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -39,6 +40,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <TripDetail />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/settings" 
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
                     </ProtectedRoute>
                   } 
                 />

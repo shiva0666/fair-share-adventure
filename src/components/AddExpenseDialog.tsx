@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,10 +22,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Expense, ExpenseCategory, Participant, Trip } from "@/types";
-import { Plus, Users, Split } from "lucide-react";
+import { Plus, Users, Split, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addExpense } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AddExpenseDialogProps {
   trip: Trip;
@@ -48,6 +49,9 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   const [category, setCategory] = useState<ExpenseCategory>("food");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [paidBy, setPaidBy] = useState<string[]>([trip.participants[0]?.id || ""]);
+  const [payerAmounts, setPayerAmounts] = useState<Record<string, string>>(
+    trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {})
+  );
   const [splitBetween, setSplitBetween] = useState<string[]>(
     trip.participants.map((p) => p.id)
   );
@@ -55,11 +59,82 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>(
     trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {})
   );
+  const [autoDistributeRemaining, setAutoDistributeRemaining] = useState(true);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Initialize payer amounts when amount changes
+  useEffect(() => {
+    if (paidBy.length === 1) {
+      // If only one payer, they pay the full amount
+      const singlePayerId = paidBy[0];
+      setPayerAmounts(prev => ({
+        ...Object.keys(prev).reduce((acc, id) => ({ ...acc, [id]: "" }), {}),
+        [singlePayerId]: amount
+      }));
+    } else if (paidBy.length > 1 && amount) {
+      // Distribute equally among all payers for initial state
+      const amountPerPayer = (parseFloat(amount) / paidBy.length).toFixed(2);
+      const updatedPayerAmounts = { ...payerAmounts };
+      
+      // Reset all payer amounts first
+      Object.keys(updatedPayerAmounts).forEach(id => {
+        updatedPayerAmounts[id] = "";
+      });
+      
+      // Set amounts for selected payers
+      paidBy.forEach(id => {
+        updatedPayerAmounts[id] = amountPerPayer;
+      });
+      
+      setPayerAmounts(updatedPayerAmounts);
+    }
+  }, [amount, paidBy]);
+
+  // Auto-distribute remaining amount in custom split
+  useEffect(() => {
+    if (useCustomSplit && autoDistributeRemaining && splitBetween.length > 0) {
+      const totalAmount = parseFloat(amount || "0");
+      if (isNaN(totalAmount) || totalAmount <= 0) return;
+
+      // Calculate already allocated amount
+      let allocatedAmount = 0;
+      let allocatedParticipants = 0;
+      
+      splitBetween.forEach(id => {
+        const participantAmount = parseFloat(splitAmounts[id] || "0");
+        if (!isNaN(participantAmount) && participantAmount > 0) {
+          allocatedAmount += participantAmount;
+          allocatedParticipants++;
+        }
+      });
+
+      // If all amounts are manually entered or no participants selected, don't auto-distribute
+      if (allocatedParticipants === splitBetween.length || splitBetween.length === 0) return;
+
+      // Calculate remaining amount and participants
+      const remainingAmount = totalAmount - allocatedAmount;
+      const remainingParticipants = splitBetween.length - allocatedParticipants;
+      
+      if (remainingAmount <= 0 || remainingParticipants <= 0) return;
+      
+      // Distribute remaining amount equally
+      const amountPerRemaining = (remainingAmount / remainingParticipants).toFixed(2);
+      
+      const updatedSplitAmounts = { ...splitAmounts };
+      splitBetween.forEach(id => {
+        const currentAmount = parseFloat(updatedSplitAmounts[id] || "0");
+        if (isNaN(currentAmount) || currentAmount <= 0) {
+          updatedSplitAmounts[id] = amountPerRemaining;
+        }
+      });
+      
+      setSplitAmounts(updatedSplitAmounts);
+    }
+  }, [useCustomSplit, splitBetween, splitAmounts, amount, autoDistributeRemaining]);
 
   const handleParticipantSelection = (participantId: string, checked: boolean) => {
     if (checked) {
@@ -83,11 +158,40 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
 
   const handlePayerSelection = (participantId: string, checked: boolean) => {
     if (checked) {
-      setPaidBy([...paidBy, participantId]);
+      // Add to payers
+      const newPaidBy = [...paidBy, participantId];
+      setPaidBy(newPaidBy);
+      
+      // Distribute amount among payers
+      if (amount) {
+        const amountPerPayer = (parseFloat(amount) / newPaidBy.length).toFixed(2);
+        const updatedPayerAmounts = { ...payerAmounts };
+        
+        newPaidBy.forEach(id => {
+          updatedPayerAmounts[id] = amountPerPayer;
+        });
+        
+        setPayerAmounts(updatedPayerAmounts);
+      }
     } else {
       // Don't allow removing the last payer
       if (paidBy.length > 1) {
-        setPaidBy(paidBy.filter((id) => id !== participantId));
+        const newPaidBy = paidBy.filter((id) => id !== participantId);
+        setPaidBy(newPaidBy);
+        
+        // Remove this payer's amount
+        const updatedPayerAmounts = { ...payerAmounts };
+        updatedPayerAmounts[participantId] = "";
+        
+        // Redistribute among remaining payers if there's an amount
+        if (amount && newPaidBy.length > 0) {
+          const amountPerPayer = (parseFloat(amount) / newPaidBy.length).toFixed(2);
+          newPaidBy.forEach(id => {
+            updatedPayerAmounts[id] = amountPerPayer;
+          });
+        }
+        
+        setPayerAmounts(updatedPayerAmounts);
       } else {
         toast({
           title: "At least one payer required",
@@ -106,6 +210,13 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       const resetAmounts = trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {});
       setSplitAmounts(resetAmounts);
     }
+  };
+
+  const updatePayerAmount = (participantId: string, value: string) => {
+    setPayerAmounts(prev => ({
+      ...prev,
+      [participantId]: value
+    }));
   };
 
   const updateSplitAmount = (participantId: string, value: string) => {
@@ -154,6 +265,42 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     return true;
   };
 
+  const validatePayerAmounts = () => {
+    // Check if all payers have an amount
+    const payersWithAmounts = paidBy.filter(id => {
+      const amount = parseFloat(payerAmounts[id] || "0");
+      return !isNaN(amount) && amount >= 0;
+    });
+    
+    if (payersWithAmounts.length !== paidBy.length) {
+      toast({
+        title: "Missing payer amounts",
+        description: "Please enter a valid amount for each payer",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    // Check if sum equals total amount
+    const amountValue = parseFloat(amount);
+    const totalPaid = paidBy.reduce(
+      (sum, id) => sum + parseFloat(payerAmounts[id] || "0"),
+      0
+    );
+    
+    // Allow for small floating-point differences
+    if (Math.abs(totalPaid - amountValue) > 0.01) {
+      toast({
+        title: "Payer amounts don't match total",
+        description: `The sum of payer amounts (${totalPaid.toFixed(2)}) must equal the total expense (${amountValue.toFixed(2)})`,
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!expenseName.trim()) {
@@ -193,6 +340,11 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       return;
     }
 
+    // Validate payer amounts
+    if (!validatePayerAmounts()) {
+      return;
+    }
+
     // Validate custom split amounts if enabled
     if (useCustomSplit && !validateCustomSplitAmounts()) {
       return;
@@ -200,6 +352,12 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
 
     try {
       setIsSubmitting(true);
+      
+      // Format payer amounts for API
+      const formattedPayerAmounts = paidBy.reduce((acc, id) => ({
+        ...acc,
+        [id]: parseFloat(payerAmounts[id] || "0")
+      }), {});
       
       // Format split amounts for the API
       const formattedSplitAmounts = useCustomSplit
@@ -216,6 +374,7 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
         category,
         date,
         paidBy: paidBy.length === 1 ? paidBy[0] : paidBy, // Send as string or string[]
+        payerAmounts: paidBy.length > 1 ? formattedPayerAmounts : undefined,
         splitBetween,
         splitAmounts: formattedSplitAmounts,
         notes: notes.trim() || undefined,
@@ -240,6 +399,7 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       setCategory("food");
       setDate(new Date().toISOString().split("T")[0]);
       setPaidBy([trip.participants[0]?.id || ""]);
+      setPayerAmounts(trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {}));
       setSplitBetween(trip.participants.map((p) => p.id));
       setUseCustomSplit(false);
       setSplitAmounts(trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {}));
@@ -270,149 +430,183 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
             Enter the expense details and how it should be split.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="expenseName">Expense Name</Label>
-            <Input
-              id="expenseName"
-              value={expenseName}
-              onChange={(e) => setExpenseName(e.target.value)}
-              placeholder="e.g., Dinner at Beach Shack"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        <ScrollArea className="h-[60vh] pr-4">
+          <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="amount">Amount (₹)</Label>
+              <Label htmlFor="expenseName">Expense Name</Label>
               <Input
-                id="amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
+                id="expenseName"
+                value={expenseName}
+                onChange={(e) => setExpenseName(e.target.value)}
+                placeholder="e.g., Dinner at Beach Shack"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="amount">Amount (₹)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={(value) => setCategory(value as ExpenseCategory)}>
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </SelectItem>
+            <div className="grid gap-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={category} onValueChange={(value) => setCategory(value as ExpenseCategory)}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {expenseCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Paid By</Label>
+              <div className="flex items-center mb-2">
+                <Users className="h-4 w-4 mr-2" />
+                <span className="text-sm text-muted-foreground">
+                  Select who paid and enter individual amounts
+                </span>
+              </div>
+              <div className="space-y-2 border rounded-md p-3 max-h-[200px] overflow-y-auto">
+                {trip.participants.map((participant) => (
+                  <div key={`payer-${participant.id}`} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`payer-${participant.id}`}
+                      checked={paidBy.includes(participant.id)}
+                      onCheckedChange={(checked) =>
+                        handlePayerSelection(
+                          participant.id,
+                          checked as boolean
+                        )
+                      }
+                    />
+                    <Label
+                      htmlFor={`payer-${participant.id}`}
+                      className="text-sm font-normal cursor-pointer flex-1"
+                    >
+                      {participant.name}
+                    </Label>
+                    
+                    {paidBy.includes(participant.id) && (
+                      <div className="flex items-center">
+                        <span className="text-sm mr-1">₹</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-24 h-8"
+                          value={payerAmounts[participant.id]}
+                          onChange={(e) => updatePayerAmount(participant.id, e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label>Paid By</Label>
-            <div className="flex items-center mb-2">
-              <Users className="h-4 w-4 mr-2" />
-              <span className="text-sm text-muted-foreground">
-                Select multiple people who contributed to this payment
-              </span>
+              </div>
             </div>
-            <div className="space-y-2 border rounded-md p-3 max-h-[150px] overflow-y-auto">
-              {trip.participants.map((participant) => (
-                <div key={`payer-${participant.id}`} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`payer-${participant.id}`}
-                    checked={paidBy.includes(participant.id)}
-                    onCheckedChange={(checked) =>
-                      handlePayerSelection(
-                        participant.id,
-                        checked as boolean
-                      )
-                    }
-                  />
-                  <Label
-                    htmlFor={`payer-${participant.id}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {participant.name}
-                  </Label>
-                </div>
-              ))}
+            <div className="grid gap-2">
+              <div className="flex justify-between items-center">
+                <Label>Split Between</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleCustomSplit}
+                  className="flex items-center gap-1"
+                >
+                  <Split className="h-4 w-4" />
+                  {useCustomSplit ? "Equal Split" : "Custom Split Amounts"}
+                </Button>
+              </div>
+              <div className="space-y-2 border rounded-md p-3 max-h-[200px] overflow-y-auto">
+                {useCustomSplit && (
+                  <div className="flex items-center mb-2 p-2 bg-muted/50 rounded-md">
+                    <Checkbox 
+                      id="auto-distribute"
+                      checked={autoDistributeRemaining}
+                      onCheckedChange={(checked) => setAutoDistributeRemaining(!!checked)}
+                      className="mr-2"
+                    />
+                    <Label 
+                      htmlFor="auto-distribute" 
+                      className="text-xs cursor-pointer"
+                    >
+                      Auto-distribute remaining amount
+                    </Label>
+                  </div>
+                )}
+                
+                {trip.participants.map((participant) => (
+                  <div key={`split-${participant.id}`} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`participant-${participant.id}`}
+                      checked={splitBetween.includes(participant.id)}
+                      onCheckedChange={(checked) =>
+                        handleParticipantSelection(
+                          participant.id,
+                          checked as boolean
+                        )
+                      }
+                    />
+                    <Label
+                      htmlFor={`participant-${participant.id}`}
+                      className="text-sm font-normal cursor-pointer flex-1"
+                    >
+                      {participant.name}
+                    </Label>
+                    
+                    {useCustomSplit && splitBetween.includes(participant.id) && (
+                      <div className="flex items-center">
+                        <span className="text-sm mr-1">₹</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-24 h-8"
+                          value={splitAmounts[participant.id]}
+                          onChange={(e) => updateSplitAmount(participant.id, e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="grid gap-2">
-            <div className="flex justify-between items-center">
-              <Label>Split Between</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={toggleCustomSplit}
-                className="flex items-center gap-1"
-              >
-                <Split className="h-4 w-4" />
-                {useCustomSplit ? "Equal Split" : "Custom Split Amounts"}
-              </Button>
-            </div>
-            <div className="space-y-2 border rounded-md p-3 max-h-[200px] overflow-y-auto">
-              {trip.participants.map((participant) => (
-                <div key={`split-${participant.id}`} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`participant-${participant.id}`}
-                    checked={splitBetween.includes(participant.id)}
-                    onCheckedChange={(checked) =>
-                      handleParticipantSelection(
-                        participant.id,
-                        checked as boolean
-                      )
-                    }
-                  />
-                  <Label
-                    htmlFor={`participant-${participant.id}`}
-                    className="text-sm font-normal cursor-pointer flex-1"
-                  >
-                    {participant.name}
-                  </Label>
-                  
-                  {useCustomSplit && splitBetween.includes(participant.id) && (
-                    <div className="flex items-center">
-                      <span className="text-sm mr-1">₹</span>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-20 h-8"
-                        value={splitAmounts[participant.id]}
-                        onChange={(e) => updateSplitAmount(participant.id, e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional notes here..."
+                rows={3}
+              />
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any additional notes here..."
-              rows={3}
-            />
-          </div>
-        </div>
-        <DialogFooter>
+        </ScrollArea>
+        <DialogFooter className="mt-4">
           <Button
             type="button"
             variant="outline"

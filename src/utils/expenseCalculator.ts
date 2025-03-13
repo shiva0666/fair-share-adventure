@@ -18,9 +18,14 @@ export const calculateTotalPaid = (
   expenses: Expense[]
 ): number => {
   return expenses.reduce((total, expense) => {
+    // If custom payer amounts are defined
+    if (expense.payerAmounts && participantId in expense.payerAmounts) {
+      return total + expense.payerAmounts[participantId];
+    }
+    
     // Handle both string and string[] for paidBy
     if (Array.isArray(expense.paidBy)) {
-      // Multiple payers - divide the amount equally between payers
+      // Multiple payers - divide the amount equally between payers (if no custom amounts)
       return expense.paidBy.includes(participantId) 
         ? total + (expense.amount / expense.paidBy.length)
         : total;
@@ -199,11 +204,19 @@ export const generateTripReport = (trip: Trip): string => {
     expensesByDate[date].forEach(expense => {
       // Format the paidBy information
       let paidByText = '';
-      if (Array.isArray(expense.paidBy)) {
+      
+      if (expense.payerAmounts) {
+        // Show custom payer amounts
+        paidByText = Object.entries(expense.payerAmounts)
+          .map(([id, amount]) => `${getParticipantName(id, trip.participants)} (${formatCurrency(amount)})`)
+          .join(', ');
+      } else if (Array.isArray(expense.paidBy)) {
+        // Multiple payers with equal split
         paidByText = expense.paidBy
           .map(id => getParticipantName(id, trip.participants))
           .join(', ');
       } else {
+        // Single payer
         paidByText = getParticipantName(expense.paidBy, trip.participants);
       }
       
@@ -267,6 +280,6 @@ export const downloadTripReport = (trip: Trip): void => {
   // Clean up
   setTimeout(() => {
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    URL.revoObjectURL(url);
   }, 0);
 };

@@ -12,12 +12,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Participant, Trip } from "@/types";
+import { Participant, SupportedCurrency, Trip } from "@/types";
 import { Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { createTrip } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CreateTripDialogProps {
   children?: React.ReactNode;
@@ -28,6 +29,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
   const [tripName, setTripName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [currency, setCurrency] = useState<SupportedCurrency>("USD");
   const [participants, setParticipants] = useState<Omit<Participant, 'balance'>[]>([
     { id: uuidv4(), name: "" },
   ]);
@@ -115,13 +117,14 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
         balance: 0
       }));
       
-      // Create the trip
+      // Create the trip with the selected currency
       await createTrip({
         name: tripName,
         startDate,
         endDate,
         participants: participantsWithBalance,
-        status: 'active'
+        status: 'active',
+        currency // Add the currency field
       });
       
       // Refetch trips
@@ -136,6 +139,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
       setTripName("");
       setStartDate("");
       setEndDate("");
+      setCurrency("USD");
       setParticipants([{ id: uuidv4(), name: "" }]);
       setOpen(false);
     } catch (error) {
@@ -148,6 +152,11 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
       setIsSubmitting(false);
     }
   };
+
+  // List of supported currencies
+  const currencyOptions: SupportedCurrency[] = [
+    "USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "CNY", "SGD", "AED"
+  ];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -194,6 +203,21 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="currency">Currency</Label>
+            <Select value={currency} onValueChange={(value) => setCurrency(value as SupportedCurrency)}>
+              <SelectTrigger id="currency">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {currencyOptions.map((curr) => (
+                  <SelectItem key={curr} value={curr}>
+                    {curr}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <div className="flex items-center justify-between">

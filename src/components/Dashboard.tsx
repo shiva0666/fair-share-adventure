@@ -10,6 +10,7 @@ import { Skeleton } from "./ui/skeleton";
 import { useState } from "react";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
+import { CreateTripDialog } from "./CreateTripDialog";
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -28,7 +29,6 @@ export function Dashboard() {
     queryFn: getDashboardSummary
   });
 
-  // Get recent trips (last 5)
   const recentTrips = trips
     ? [...trips]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -40,7 +40,6 @@ export function Dashboard() {
     
     try {
       await deleteTrip(selectedTripId);
-      // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: ["trips"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       
@@ -65,7 +64,6 @@ export function Dashboard() {
     
     try {
       await updateTripStatus(selectedTripId, "completed");
-      // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: ["trips"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       
@@ -153,9 +151,9 @@ export function Dashboard() {
           ) : recentTrips.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
               <p className="text-muted-foreground mb-4">You don't have any trips yet</p>
-              <Link to="/">
+              <CreateTripDialog>
                 <Button>Create Your First Trip</Button>
-              </Link>
+              </CreateTripDialog>
             </div>
           ) : (
             <div className="space-y-4">
@@ -172,7 +170,6 @@ export function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialogs */}
       <ConfirmationDialog
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
@@ -275,7 +272,6 @@ function TripRow({ trip, onDelete, onComplete }: TripRowProps) {
           {trip.status === 'active' ? 'Active' : 'Completed'}
         </div>
         
-        {/* Action buttons */}
         <div className="flex space-x-2">
           {trip.status === 'active' && (
             <Button 

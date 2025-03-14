@@ -4,6 +4,10 @@ import { Trip, Expense } from "@/types";
 import { AddExpenseDialog } from "./AddExpenseDialog";
 import { formatCurrency, getParticipantName } from "@/utils/expenseCalculator";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { generateDailyExpensePDF } from "@/utils/pdfGenerator";
+import { useToast } from "@/hooks/use-toast";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -11,6 +15,8 @@ interface ExpensesViewProps {
 }
 
 export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
+  const { toast } = useToast();
+
   // Group expenses by date
   const expensesByDate = trip.expenses.reduce<Record<string, Expense[]>>(
     (groups, expense) => {
@@ -34,6 +40,24 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     return expenses.reduce((sum, expense) => sum + expense.amount, 0);
   };
 
+  // Handle downloading daily expense report
+  const handleDownloadDailyReport = async (date: string) => {
+    try {
+      await generateDailyExpensePDF(trip, date);
+      toast({
+        title: "Success",
+        description: "Daily expense report downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report",
+        variant: "destructive",
+      });
+      console.error("PDF generation error:", error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {sortedDates.length === 0 ? (
@@ -54,7 +78,18 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
                   <h2 className="text-xl font-semibold">
                     {format(new Date(date), "EEEE, d MMMM yyyy")}
                   </h2>
-                  <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]))}</p>
+                  <div className="flex items-center gap-3">
+                    <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]))}</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleDownloadDailyReport(date)}
+                      className="flex items-center gap-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Download</span>
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {expensesByDate[date].map((expense) => (

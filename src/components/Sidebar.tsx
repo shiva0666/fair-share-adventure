@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery } from "@tanstack/react-query";
+import { getAllTrips } from "@/services/tripService";
 
 interface SidebarProps {
   className?: string;
@@ -23,6 +25,14 @@ export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Fetch trips data for the sidebar
+  const { data: trips } = useQuery({
+    queryKey: ["trips"],
+    queryFn: getAllTrips,
+  });
+
+  const activeTripsCount = trips?.filter(trip => trip.status === "active").length || 0;
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -44,7 +54,7 @@ export function Sidebar({ className }: SidebarProps) {
       path: "/dashboard",
     },
     {
-      name: "Your Trips",
+      name: `Your Trips ${activeTripsCount > 0 ? `(${activeTripsCount})` : ''}`,
       icon: <Map className="h-5 w-5" />,
       path: "/trips",
     },

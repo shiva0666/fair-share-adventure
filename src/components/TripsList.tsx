@@ -4,6 +4,8 @@ import { TripCard } from "@/components/TripCard";
 import { Trip } from "@/types";
 import { TripSearch } from "@/components/TripSearch";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { ConfirmationDialog } from "@/components/ConfirmationDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface TripsListProps {
   trips: Trip[];
@@ -15,6 +17,14 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>(trips);
   const [currentPage, setCurrentPage] = useState(1);
   const tripsPerPage = 6;
+  const { toast } = useToast();
+
+  // Confirmation dialogs state
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showFinalDeleteConfirmation, setShowFinalDeleteConfirmation] = useState(false);
+  const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
+  const [showFinalCompleteConfirmation, setShowFinalCompleteConfirmation] = useState(false);
 
   // Calculate pagination
   const indexOfLastTrip = currentPage * tripsPerPage;
@@ -25,6 +35,52 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Handle delete confirmation
+  const handleDeleteInitial = (id: string) => {
+    setSelectedTripId(id);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteSecondary = () => {
+    setShowDeleteConfirmation(false);
+    setShowFinalDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedTripId) {
+      onDeleteTrip(selectedTripId);
+      toast({
+        title: "Trip deleted",
+        description: "The trip has been permanently deleted.",
+      });
+      setShowFinalDeleteConfirmation(false);
+      setSelectedTripId(null);
+    }
+  };
+
+  // Handle complete confirmation
+  const handleCompleteInitial = (id: string) => {
+    setSelectedTripId(id);
+    setShowCompleteConfirmation(true);
+  };
+
+  const handleCompleteSecondary = () => {
+    setShowCompleteConfirmation(false);
+    setShowFinalCompleteConfirmation(true);
+  };
+
+  const handleCompleteConfirm = () => {
+    if (selectedTripId) {
+      onCompleteTrip(selectedTripId);
+      toast({
+        title: "Trip complete",
+        description: "The trip has been marked as completed.",
+      });
+      setShowFinalCompleteConfirmation(false);
+      setSelectedTripId(null);
+    }
   };
 
   return (
@@ -43,12 +99,13 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
               <TripCard 
                 key={trip.id} 
                 trip={trip} 
-                onDelete={onDeleteTrip} 
-                onComplete={onCompleteTrip} 
+                onDelete={() => handleDeleteInitial(trip.id)} 
+                onComplete={() => handleCompleteInitial(trip.id)} 
               />
             ))}
           </div>
           
+          {/* Pagination */}
           {totalPages > 1 && (
             <Pagination className="mt-8">
               <PaginationContent>
@@ -79,6 +136,48 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
               </PaginationContent>
             </Pagination>
           )}
+
+          {/* Delete Confirmation Dialogs */}
+          <ConfirmationDialog
+            isOpen={showDeleteConfirmation}
+            onClose={() => setShowDeleteConfirmation(false)}
+            onConfirm={handleDeleteSecondary}
+            title="Delete Trip"
+            description="Are you sure you want to delete this trip? This action can't be undone."
+            confirmLabel="Continue"
+            cancelLabel="Cancel"
+          />
+
+          <ConfirmationDialog
+            isOpen={showFinalDeleteConfirmation}
+            onClose={() => setShowFinalDeleteConfirmation(false)}
+            onConfirm={handleDeleteConfirm}
+            title="Final Confirmation"
+            description="This will permanently delete the trip and all its data. Are you absolutely sure?"
+            confirmLabel="Delete Trip"
+            cancelLabel="Keep Trip"
+          />
+
+          {/* Complete Confirmation Dialogs */}
+          <ConfirmationDialog
+            isOpen={showCompleteConfirmation}
+            onClose={() => setShowCompleteConfirmation(false)}
+            onConfirm={handleCompleteSecondary}
+            title="Complete Trip"
+            description="Are you sure you want to mark this trip as completed?"
+            confirmLabel="Continue"
+            cancelLabel="Cancel"
+          />
+
+          <ConfirmationDialog
+            isOpen={showFinalCompleteConfirmation}
+            onClose={() => setShowFinalCompleteConfirmation(false)}
+            onConfirm={handleCompleteConfirm}
+            title="Final Confirmation"
+            description="This will archive the trip and mark it as completed. Are you absolutely sure?"
+            confirmLabel="Complete Trip"
+            cancelLabel="Keep Active"
+          />
         </>
       )}
     </div>

@@ -1,4 +1,3 @@
-
 export interface Expense {
   id: string;
   name: string;
@@ -39,6 +38,7 @@ export interface Trip {
   expenses: Expense[];
   status: 'active' | 'completed';
   createdAt: string;
+  currency?: string; // Add currency field
 }
 
 export interface Settlement {
@@ -55,6 +55,18 @@ export type ExpenseCategory =
   | 'activities' 
   | 'shopping' 
   | 'other';
+
+export type SupportedCurrency = 
+  | 'USD' 
+  | 'EUR' 
+  | 'GBP' 
+  | 'INR' 
+  | 'AUD' 
+  | 'CAD' 
+  | 'JPY' 
+  | 'CNY' 
+  | 'SGD' 
+  | 'AED';
 
 export interface DashboardSummary {
   totalTrips: number;

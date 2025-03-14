@@ -19,7 +19,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { createTrip } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
 
-export function CreateTripDialog() {
+interface CreateTripDialogProps {
+  children?: React.ReactNode;
+}
+
+export function CreateTripDialog({ children }: CreateTripDialogProps) {
   const [open, setOpen] = useState(false);
   const [tripName, setTripName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -148,9 +152,11 @@ export function CreateTripDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Create New Trip
-        </Button>
+        {children || (
+          <Button>
+            <Plus className="mr-2 h-4 w-4" /> Create New Trip
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>

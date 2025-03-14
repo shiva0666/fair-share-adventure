@@ -3,19 +3,29 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import Dashboard from "@/components/Dashboard";
 import { CreateTripDialog } from "@/components/CreateTripDialog";
+import { Sidebar } from "@/components/Sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <CreateTripDialog />
-        </div>
-        
-        <Dashboard />
-      </main>
+      <div className="flex">
+        {!isMobile && <Sidebar />}
+        <main className="flex-1">
+          <div className="container mx-auto p-6">
+            <div className="flex justify-between items-center mb-8">
+              <h1 className="text-3xl font-bold">Dashboard</h1>
+              <CreateTripDialog>
+                <Button size="sm">Create Trip</Button>
+              </CreateTripDialog>
+            </div>
+            <Dashboard />
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

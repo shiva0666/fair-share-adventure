@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
-import { Dashboard } from "@/components/Dashboard";
+import Dashboard from "@/components/Dashboard";
 import { CreateTripDialog } from "@/components/CreateTripDialog";
 
 const Index = () => {

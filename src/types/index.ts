@@ -10,6 +10,16 @@ export interface Expense {
   splitBetween: string[];
   splitAmounts?: Record<string, number>; // Custom split amounts by participant id
   notes?: string;
+  attachments?: ExpenseAttachment[]; // Optional file attachments
+}
+
+export interface ExpenseAttachment {
+  id: string;
+  filename: string;
+  fileUrl: string;
+  fileType: string;
+  thumbnailUrl?: string;
+  createdAt: string;
 }
 
 export interface Participant {

@@ -1,5 +1,5 @@
 
-import { DashboardSummary, Expense, Participant, Trip } from "@/types";
+import { DashboardSummary, Expense, ExpenseAttachment, Participant, Trip } from "@/types";
 import { updateParticipantBalances } from "@/utils/expenseCalculator";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -108,6 +108,28 @@ export const getAllTrips = async (): Promise<Trip[]> => {
   });
 };
 
+// Search trips by name
+export const searchTrips = async (query: string): Promise<Trip[]> => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const trips = getStoredTrips();
+      if (!query.trim()) {
+        resolve(trips);
+        return;
+      }
+      
+      const normalizedQuery = query.toLowerCase().trim();
+      const filteredTrips = trips.filter(trip => 
+        trip.name.toLowerCase().includes(normalizedQuery) ||
+        trip.startDate.includes(normalizedQuery) ||
+        trip.endDate.includes(normalizedQuery)
+      );
+      
+      resolve(filteredTrips);
+    }, 500);
+  });
+};
+
 // Get trip by ID
 export const getTripById = async (id: string): Promise<Trip | undefined> => {
   return new Promise(resolve => {
@@ -166,6 +188,96 @@ export const addExpense = async (tripId: string, expense: Omit<Expense, 'id'>): 
       saveTrips(trips);
       
       resolve(tripWithBalances);
+    }, 500);
+  });
+};
+
+// Update expense in a trip
+export const updateExpense = async (tripId: string, updatedExpense: Expense): Promise<Trip> => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const trips = getStoredTrips();
+      const tripIndex = trips.findIndex(trip => trip.id === tripId);
+      
+      if (tripIndex === -1) {
+        throw new Error('Trip not found');
+      }
+      
+      const expenseIndex = trips[tripIndex].expenses.findIndex(e => e.id === updatedExpense.id);
+      
+      if (expenseIndex === -1) {
+        throw new Error('Expense not found');
+      }
+      
+      const updatedExpenses = [...trips[tripIndex].expenses];
+      updatedExpenses[expenseIndex] = updatedExpense;
+      
+      const updatedTrip = {
+        ...trips[tripIndex],
+        expenses: updatedExpenses,
+      };
+      
+      // Recalculate balances
+      const tripWithBalances = updateParticipantBalances(updatedTrip);
+      
+      trips[tripIndex] = tripWithBalances;
+      saveTrips(trips);
+      
+      resolve(tripWithBalances);
+    }, 500);
+  });
+};
+
+// Delete an expense attachment
+export const deleteExpenseAttachment = async (
+  tripId: string, 
+  expenseId: string, 
+  attachmentId: string
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const trips = getStoredTrips();
+        const tripIndex = trips.findIndex(trip => trip.id === tripId);
+        
+        if (tripIndex === -1) {
+          throw new Error('Trip not found');
+        }
+        
+        const expenseIndex = trips[tripIndex].expenses.findIndex(e => e.id === expenseId);
+        
+        if (expenseIndex === -1) {
+          throw new Error('Expense not found');
+        }
+        
+        const expense = trips[tripIndex].expenses[expenseIndex];
+        
+        if (!expense.attachments) {
+          throw new Error('No attachments found');
+        }
+        
+        const updatedAttachments = expense.attachments.filter(a => a.id !== attachmentId);
+        
+        // Update the expense with the filtered attachments
+        const updatedExpense = {
+          ...expense,
+          attachments: updatedAttachments.length > 0 ? updatedAttachments : undefined,
+        };
+        
+        // Update the trip with the modified expense
+        const updatedExpenses = [...trips[tripIndex].expenses];
+        updatedExpenses[expenseIndex] = updatedExpense;
+        
+        trips[tripIndex] = {
+          ...trips[tripIndex],
+          expenses: updatedExpenses,
+        };
+        
+        saveTrips(trips);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     }, 500);
   });
 };

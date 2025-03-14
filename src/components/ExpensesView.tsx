@@ -5,9 +5,10 @@ import { AddExpenseDialog } from "./AddExpenseDialog";
 import { formatCurrency, getParticipantName } from "@/utils/expenseCalculator";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Image, Paperclip } from "lucide-react";
 import { generateDailyExpensePDF } from "@/utils/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
+import { EditExpenseDialog } from "./EditExpenseDialog";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -97,6 +98,8 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
                       key={expense.id} 
                       expense={expense} 
                       participants={trip.participants}
+                      trip={trip}
+                      onExpenseUpdated={onRefresh}
                     />
                   ))}
                 </div>
@@ -113,9 +116,11 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
 interface ExpenseItemProps {
   expense: Expense;
   participants: Trip["participants"];
+  trip: Trip;
+  onExpenseUpdated?: () => void;
 }
 
-function ExpenseItem({ expense, participants }: ExpenseItemProps) {
+function ExpenseItem({ expense, participants, trip, onExpenseUpdated }: ExpenseItemProps) {
   // Modify this function to handle both string and string[] for paidBy
   const getPaidByName = (paidBy: string | string[], participants: Trip["participants"]) => {
     if (Array.isArray(paidBy)) {
@@ -150,18 +155,71 @@ function ExpenseItem({ expense, participants }: ExpenseItemProps) {
     }
   };
 
+  const hasAttachments = expense.attachments && expense.attachments.length > 0;
+
   return (
     <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
       <div className="flex items-start justify-between">
         <div className="flex gap-3">
           <div className="text-xl">{getCategoryIcon(expense.category)}</div>
           <div>
-            <h3 className="font-medium">{expense.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">{expense.name}</h3>
+              <EditExpenseDialog 
+                trip={trip} 
+                expense={expense} 
+                onExpenseUpdated={onExpenseUpdated} 
+              />
+            </div>
             <p className="text-sm text-muted-foreground">
               Paid by {paidByName} • Split {expense.splitBetween.length} ways
             </p>
             {expense.notes && (
               <p className="text-sm mt-1 italic">{expense.notes}</p>
+            )}
+            
+            {hasAttachments && (
+              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                <Paperclip className="h-3 w-3" />
+                <span>{expense.attachments!.length} attachment{expense.attachments!.length !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+            
+            {hasAttachments && (
+              <div className="flex gap-2 mt-2">
+                {expense.attachments!.slice(0, 3).map((attachment) => (
+                  attachment.fileType.startsWith('image/') && attachment.thumbnailUrl ? (
+                    <a 
+                      key={attachment.id}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-12 h-12 rounded border overflow-hidden"
+                    >
+                      <img 
+                        src={attachment.thumbnailUrl} 
+                        alt={attachment.filename}
+                        className="w-full h-full object-cover" 
+                      />
+                    </a>
+                  ) : (
+                    <a
+                      key={attachment.id}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-12 h-12 rounded border bg-muted"
+                    >
+                      <Paperclip className="h-5 w-5 text-muted-foreground" />
+                    </a>
+                  )
+                ))}
+                {expense.attachments!.length > 3 && (
+                  <div className="flex items-center justify-center w-12 h-12 rounded border bg-muted">
+                    <span className="text-xs text-muted-foreground">+{expense.attachments!.length - 3}</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

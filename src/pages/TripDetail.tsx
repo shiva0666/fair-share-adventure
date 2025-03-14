@@ -10,9 +10,12 @@ import { TripParticipants } from "@/components/TripParticipants";
 import { Button } from "@/components/ui/button";
 import { getTripById } from "@/services/tripService";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExpenseAnalytics } from "@/components/ExpenseAnalytics";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TripDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const [activeTab, setActiveTab] = useState<string>("expenses");
   
   const { data: trip, isLoading, error, refetch } = useQuery({
     queryKey: ["trip", id],
@@ -31,15 +34,30 @@ const TripDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar tripName={trip.name} currentTrip={trip} />
-      <main className="container mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <ExpensesView trip={trip} onRefresh={() => refetch()} />
-        </div>
-        <div className="space-y-6">
-          <TripSummary trip={trip} />
-          <TripParticipants trip={trip} />
-          <SettlementView trip={trip} />
-        </div>
+      <main className="container mx-auto p-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="expenses" className="mt-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-6">
+                <ExpensesView trip={trip} onRefresh={() => refetch()} />
+              </div>
+              <div className="space-y-6">
+                <TripSummary trip={trip} />
+                <TripParticipants trip={trip} />
+                <SettlementView trip={trip} />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="analytics" className="mt-0">
+            <ExpenseAnalytics trip={trip} />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

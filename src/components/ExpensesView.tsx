@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Trip, Expense } from "@/types";
 import { AddExpenseDialog } from "./AddExpenseDialog";
@@ -33,7 +32,6 @@ interface ExpensesViewProps {
 export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
   const { toast } = useToast();
 
-  // Group expenses by date
   const expensesByDate = trip.expenses.reduce<Record<string, Expense[]>>(
     (groups, expense) => {
       const date = expense.date;
@@ -46,17 +44,14 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     {}
   );
 
-  // Sort dates in descending order
   const sortedDates = Object.keys(expensesByDate).sort(
     (a, b) => new Date(b).getTime() - new Date(a).getTime()
   );
 
-  // Calculate total for each day
   const getDayTotal = (expenses: Expense[]): number => {
     return expenses.reduce((sum, expense) => sum + expense.amount, 0);
   };
 
-  // Handle downloading daily expense report
   const handleDownloadDailyReport = async (date: string) => {
     try {
       await generateDailyExpensePDF(trip, date);
@@ -74,7 +69,6 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     }
   };
 
-  // Handle downloading individual expense report
   const handleDownloadExpense = async (expense: Expense) => {
     try {
       await generateExpensePDF(trip, expense);
@@ -92,14 +86,11 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     }
   };
 
-  // Handle expense preview
   const handlePreviewExpense = (expense: Expense) => {
-    // For now just show a toast with expense details
     toast({
       title: expense.name,
       description: `${formatCurrency(expense.amount, trip.currency)} - ${expense.category}`,
     });
-    // In a real app, you might show a modal with detailed expense info
   };
 
   return (
@@ -175,16 +166,13 @@ function ExpenseItem({
   onDownloadExpense,
   onPreviewExpense 
 }: ExpenseItemProps) {
-  // Modify this function to handle both string and string[] for paidBy
   const getPaidByName = (paidBy: string | string[], participants: Trip["participants"]) => {
     if (Array.isArray(paidBy)) {
-      // Handle array of payer IDs
       const payerNames = paidBy.map(id => 
         getParticipantName(id, participants)
       );
       return payerNames.join(', ');
     } else {
-      // Handle single payer ID
       return getParticipantName(paidBy, participants);
     }
   };
@@ -306,10 +294,8 @@ function ExpenseItem({
             </DropdownMenuContent>
           </DropdownMenu>
           
-          {/* Hidden edit dialog trigger */}
           <span className="hidden">
             <EditExpenseDialog 
-              id={`edit-expense-${expense.id}`}
               trip={trip} 
               expense={expense} 
               onExpenseUpdated={onExpenseUpdated} 

@@ -545,9 +545,16 @@ export function ExpenseAnalytics({ trip }: ExpenseAnalyticsProps) {
                       <Legend />
                       <Bar 
                         dataKey="balance" 
-                        name="Balance" 
-                        fill={data => (data.balance >= 0 ? "#00C49F" : "#FF8042")}
-                      />
+                        name="Balance"
+                        fill="#8884d8"
+                      >
+                        {settlementData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.balance >= 0 ? "#00C49F" : "#FF8042"} 
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -581,9 +588,16 @@ export function ExpenseAnalytics({ trip }: ExpenseAnalyticsProps) {
                       <Legend />
                       <Bar 
                         dataKey="balance" 
-                        name="Net Balance" 
-                        fill={data => (data.balance >= 0 ? "#00C49F" : "#FF8042")}
-                      />
+                        name="Net Balance"
+                        fill="#8884d8"
+                      >
+                        {contributionVsBenefitData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.balance >= 0 ? "#00C49F" : "#FF8042"} 
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

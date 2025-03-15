@@ -19,6 +19,7 @@ export interface ExpenseAttachment {
   fileType: string;
   thumbnailUrl?: string;
   createdAt: string;
+  uploadedAt: string; // Add this field to fix the error in pdfGenerator.ts
 }
 
 export interface Participant {

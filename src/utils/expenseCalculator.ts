@@ -1,4 +1,3 @@
-
 import { Expense, Participant, Settlement, Trip } from "@/types";
 
 // Calculate each participant's share of an expense
@@ -60,16 +59,67 @@ export const calculateBalance = (
 };
 
 // Update all participant balances
-export const updateParticipantBalances = (trip: Trip): Trip => {
-  const updatedParticipants = trip.participants.map((participant) => ({
-    ...participant,
-    balance: calculateBalance(participant.id, trip.expenses),
-  }));
-
-  return {
-    ...trip,
-    participants: updatedParticipants,
-  };
+export const updateParticipantBalances = (
+  tripOrGroup: Trip | Omit<Group, 'startDate' | 'endDate'>
+): Trip | Group => {
+  // Clone the object to avoid mutating the original
+  const clone = JSON.parse(JSON.stringify(tripOrGroup));
+  
+  // Reset all balances to 0
+  clone.participants.forEach((participant: Participant) => {
+    participant.balance = 0;
+  });
+  
+  // Process each expense
+  clone.expenses.forEach((expense: Expense) => {
+    // Calculate who paid what
+    const payers = Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy];
+    const payerCount = payers.length;
+    
+    // Handle single or multiple payers
+    if (payerCount === 1) {
+      // Single payer - increase their balance
+      const payerId = payers[0];
+      const payer = clone.participants.find((p: Participant) => p.id === payerId);
+      if (payer) {
+        payer.balance += expense.amount;
+      }
+    } else if (payerCount > 1 && expense.payerAmounts) {
+      // Multiple payers with custom amounts
+      payers.forEach(payerId => {
+        const amount = expense.payerAmounts?.[payerId] || 0;
+        const payer = clone.participants.find((p: Participant) => p.id === payerId);
+        if (payer) {
+          payer.balance += amount;
+        }
+      });
+    }
+    
+    // Calculate who owes what
+    const splitBetween = expense.splitBetween;
+    
+    if (expense.splitAmounts) {
+      // Custom split amounts
+      splitBetween.forEach(participantId => {
+        const amount = expense.splitAmounts?.[participantId] || 0;
+        const participant = clone.participants.find((p: Participant) => p.id === participantId);
+        if (participant) {
+          participant.balance -= amount;
+        }
+      });
+    } else {
+      // Equal split
+      const shareAmount = expense.amount / splitBetween.length;
+      splitBetween.forEach(participantId => {
+        const participant = clone.participants.find((p: Participant) => p.id === participantId);
+        if (participant) {
+          participant.balance -= shareAmount;
+        }
+      });
+    }
+  });
+  
+  return clone;
 };
 
 // Generate settlement suggestions to minimize transactions

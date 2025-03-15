@@ -100,7 +100,7 @@ export const addExpense = async (groupId: string, expense: Omit<Expense, 'id'>):
       };
       
       // Recalculate balances
-      const groupWithBalances = updateParticipantBalances(updatedGroup);
+      const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
       
       groups[groupIndex] = groupWithBalances;
       saveGroups(groups);
@@ -136,7 +136,7 @@ export const updateExpense = async (groupId: string, updatedExpense: Expense): P
       };
       
       // Recalculate balances
-      const groupWithBalances = updateParticipantBalances(updatedGroup);
+      const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
       
       groups[groupIndex] = groupWithBalances;
       saveGroups(groups);

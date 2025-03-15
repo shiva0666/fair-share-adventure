@@ -5,10 +5,25 @@ import { AddExpenseDialog } from "./AddExpenseDialog";
 import { formatCurrency, getParticipantName } from "@/utils/expenseCalculator";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Download, Image, Paperclip } from "lucide-react";
+import { 
+  Download, 
+  Image, 
+  Paperclip, 
+  MoreVertical, 
+  Edit, 
+  Eye, 
+  FileText 
+} from "lucide-react";
 import { generateDailyExpensePDF } from "@/utils/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { EditExpenseDialog } from "./EditExpenseDialog";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { generateExpensePDF } from "@/utils/pdfGenerator";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -59,6 +74,34 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     }
   };
 
+  // Handle downloading individual expense report
+  const handleDownloadExpense = async (expense: Expense) => {
+    try {
+      await generateExpensePDF(trip, expense);
+      toast({
+        title: "Success",
+        description: "Expense details downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate expense PDF",
+        variant: "destructive",
+      });
+      console.error("PDF generation error:", error);
+    }
+  };
+
+  // Handle expense preview
+  const handlePreviewExpense = (expense: Expense) => {
+    // For now just show a toast with expense details
+    toast({
+      title: expense.name,
+      description: `${formatCurrency(expense.amount, trip.currency)} - ${expense.category}`,
+    });
+    // In a real app, you might show a modal with detailed expense info
+  };
+
   return (
     <div className="space-y-6">
       {sortedDates.length === 0 ? (
@@ -80,7 +123,7 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
                     {format(new Date(date), "EEEE, d MMMM yyyy")}
                   </h2>
                   <div className="flex items-center gap-3">
-                    <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]))}</p>
+                    <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]), trip.currency)}</p>
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -100,6 +143,8 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
                       participants={trip.participants}
                       trip={trip}
                       onExpenseUpdated={onRefresh}
+                      onDownloadExpense={handleDownloadExpense}
+                      onPreviewExpense={handlePreviewExpense}
                     />
                   ))}
                 </div>
@@ -118,9 +163,18 @@ interface ExpenseItemProps {
   participants: Trip["participants"];
   trip: Trip;
   onExpenseUpdated?: () => void;
+  onDownloadExpense: (expense: Expense) => void;
+  onPreviewExpense: (expense: Expense) => void;
 }
 
-function ExpenseItem({ expense, participants, trip, onExpenseUpdated }: ExpenseItemProps) {
+function ExpenseItem({ 
+  expense, 
+  participants, 
+  trip, 
+  onExpenseUpdated,
+  onDownloadExpense,
+  onPreviewExpense 
+}: ExpenseItemProps) {
   // Modify this function to handle both string and string[] for paidBy
   const getPaidByName = (paidBy: string | string[], participants: Trip["participants"]) => {
     if (Array.isArray(paidBy)) {
@@ -165,11 +219,6 @@ function ExpenseItem({ expense, participants, trip, onExpenseUpdated }: ExpenseI
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-medium">{expense.name}</h3>
-              <EditExpenseDialog 
-                trip={trip} 
-                expense={expense} 
-                onExpenseUpdated={onExpenseUpdated} 
-              />
             </div>
             <p className="text-sm text-muted-foreground">
               Paid by {paidByName} • Split {expense.splitBetween.length} ways
@@ -223,11 +272,49 @@ function ExpenseItem({ expense, participants, trip, onExpenseUpdated }: ExpenseI
             )}
           </div>
         </div>
-        <div className="text-right">
-          <p className="font-medium">{formatCurrency(expense.amount)}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatCurrency(shareAmount)}/person
-          </p>
+        <div className="flex items-start gap-2">
+          <div className="text-right">
+            <p className="font-medium">{formatCurrency(expense.amount, trip.currency)}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(shareAmount, trip.currency)}/person
+            </p>
+          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                const editDialog = document.getElementById(`edit-expense-${expense.id}-trigger`);
+                if (editDialog) editDialog.click();
+              }}>
+                <Edit className="mr-2 h-4 w-4" />
+                <span>Edit Expense</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onPreviewExpense(expense)}>
+                <Eye className="mr-2 h-4 w-4" />
+                <span>Preview Expense</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDownloadExpense(expense)}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Download Details</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Hidden edit dialog trigger */}
+          <span className="hidden">
+            <EditExpenseDialog 
+              id={`edit-expense-${expense.id}`}
+              trip={trip} 
+              expense={expense} 
+              onExpenseUpdated={onExpenseUpdated} 
+            />
+          </span>
         </div>
       </div>
     </div>

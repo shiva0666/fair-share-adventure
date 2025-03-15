@@ -5,24 +5,49 @@ import { Trip } from "@/types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Calendar, MapPin, Users, Trash, CheckCircle } from "lucide-react";
+import { 
+  Calendar, 
+  MapPin, 
+  Users, 
+  MoreVertical, 
+  Trash, 
+  CheckCircle,
+  EyeOff,
+  Edit 
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { useState } from "react";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 
 interface TripCardProps {
   trip: Trip;
   onDelete: (id: string) => void;
   onComplete: (id: string) => void;
+  onEdit?: (trip: Trip) => void;
+  onHide?: (id: string) => void;
 }
 
-export function TripCard({ trip, onDelete, onComplete }: TripCardProps) {
+export function TripCard({ 
+  trip, 
+  onDelete, 
+  onComplete, 
+  onEdit, 
+  onHide 
+}: TripCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showHideDialog, setShowHideDialog] = useState(false);
 
   // Calculate total expenses
   const totalExpenses = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -52,6 +77,26 @@ export function TripCard({ trip, onDelete, onComplete }: TripCardProps) {
     });
   };
 
+  const handleHideConfirm = () => {
+    if (onHide) {
+      onHide(trip.id);
+      setShowHideDialog(false);
+      toast({
+        title: "Trip hidden",
+        description: `"${trip.name}" has been hidden from your dashboard`,
+      });
+    }
+  };
+
+  const handleEditTrip = () => {
+    if (onEdit) {
+      onEdit(trip);
+    } else {
+      // If no edit handler is provided, just navigate to the trip detail page
+      navigate(`/trips/${trip.id}`);
+    }
+  };
+
   return (
     <>
       <Card 
@@ -72,9 +117,63 @@ export function TripCard({ trip, onDelete, onComplete }: TripCardProps) {
                 </span>
               </div>
             </div>
-            <Badge variant={trip.status === "active" ? "default" : "outline"}>
-              {trip.status === "active" ? "Active" : "Completed"}
-            </Badge>
+            
+            <div className="flex items-center gap-2">
+              <Badge variant={trip.status === "active" ? "default" : "outline"}>
+                {trip.status === "active" ? "Active" : "Completed"}
+              </Badge>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditTrip();
+                  }}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    <span>Edit Trip</span>
+                  </DropdownMenuItem>
+                  
+                  {trip.status === "active" && (
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCompleteDialog(true);
+                    }}>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <span>Mark as Completed</span>
+                    </DropdownMenuItem>
+                  )}
+                  
+                  {onHide && (
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setShowHideDialog(true);
+                    }}>
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      <span>Hide Trip</span>
+                    </DropdownMenuItem>
+                  )}
+                  
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeleteDialog(true);
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash className="mr-2 h-4 w-4" />
+                    <span>Delete Trip</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           
           <div className="space-y-3">
@@ -86,51 +185,24 @@ export function TripCard({ trip, onDelete, onComplete }: TripCardProps) {
             <div className="flex items-center">
               <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
               <span className="text-sm line-clamp-1">
-                {trip.expenses.length} expenses ({formatCurrency(totalExpenses)})
+                {trip.expenses.length} expenses ({formatCurrency(totalExpenses, trip.currency)})
               </span>
             </div>
           </div>
         </CardContent>
         
-        <CardFooter className="bg-muted/50 px-6 py-3 flex justify-between">
+        <CardFooter className="bg-muted/50 px-6 py-3">
           <Button 
             variant="outline" 
             size="sm" 
-            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+            className="w-full"
             onClick={(e) => {
               e.stopPropagation();
-              setShowDeleteDialog(true);
+              navigate(`/trips/${trip.id}`);
             }}
           >
-            <Trash className="h-4 w-4 mr-2" />
-            Delete
+            View Details
           </Button>
-          
-          {trip.status === "active" ? (
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="text-primary hover:text-primary-foreground hover:bg-primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowCompleteDialog(true);
-              }}
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Complete
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/trips/${trip.id}`);
-              }}
-            >
-              View Details
-            </Button>
-          )}
         </CardFooter>
       </Card>
 
@@ -153,6 +225,18 @@ export function TripCard({ trip, onDelete, onComplete }: TripCardProps) {
         confirmLabel="Complete"
         cancelLabel="Cancel"
       />
+
+      {onHide && (
+        <ConfirmationDialog
+          isOpen={showHideDialog}
+          onClose={() => setShowHideDialog(false)}
+          onConfirm={handleHideConfirm}
+          title="Hide Trip"
+          description={`Do you want to hide "${trip.name}" from your main dashboard view?`}
+          confirmLabel="Yes, Hide"
+          cancelLabel="Cancel"
+        />
+      )}
     </>
   );
 }

@@ -17,6 +17,7 @@ import { Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { useQueryClient } from "@tanstack/react-query";
+import { createGroup } from "@/services/groupService";
 
 interface CreateGroupDialogProps {
   children?: React.ReactNode;
@@ -86,8 +87,16 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
         balance: 0
       }));
       
-      // This would be replaced with actual group creation API call
-      // For now, we'll just show a success message
+      // Create the group using the service
+      await createGroup({
+        name: groupName,
+        description: description.trim() || undefined,
+        participants: participantsWithBalance,
+      });
+      
+      // Invalidate queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['group-stats'] });
       
       toast({
         title: "Success",

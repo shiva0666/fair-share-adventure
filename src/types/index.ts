@@ -1,3 +1,4 @@
+
 export interface Expense {
   id: string;
   name: string;
@@ -42,6 +43,17 @@ export interface Trip {
   currency?: string; // Add currency field
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  participants: Participant[];
+  expenses: Expense[];
+  status: 'active' | 'completed';
+  createdAt: string;
+  currency?: string;
+}
+
 export interface Settlement {
   from: string;
   to: string;
@@ -74,4 +86,6 @@ export interface DashboardSummary {
   totalExpenses: number;
   activeTrips: number;
   tripFriends: number;
+  totalGroups?: number;
+  activeGroups?: number;
 }

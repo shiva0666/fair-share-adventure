@@ -1,7 +1,7 @@
-
 import { DashboardSummary, Expense, ExpenseAttachment, Participant, Trip } from "@/types";
 import { updateParticipantBalances } from "@/utils/expenseCalculator";
 import { v4 as uuidv4 } from 'uuid';
+import { getGroupStats } from "./groupService";
 
 // Mock data for trips
 const mockTrips: Trip[] = [
@@ -331,8 +331,8 @@ export const deleteTrip = async (tripId: string): Promise<void> => {
 
 // Get dashboard summary
 export const getDashboardSummary = async (): Promise<DashboardSummary> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
+  return new Promise(async (resolve) => {
+    setTimeout(async () => {
       const trips = getStoredTrips();
       const activeTrips = trips.filter(trip => trip.status === 'active').length;
       
@@ -350,11 +350,16 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
         0
       );
       
+      // Get group statistics
+      const groupStats = await getGroupStats();
+      
       resolve({
         totalTrips: trips.length,
         activeTrips,
         totalExpenses,
         tripFriends: allParticipantIds.size,
+        totalGroups: groupStats.totalGroups,
+        activeGroups: groupStats.activeGroups
       });
     }, 500);
   });

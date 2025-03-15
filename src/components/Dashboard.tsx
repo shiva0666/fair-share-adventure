@@ -1,20 +1,24 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
-import { Trip } from "@/types";
+import { Trip, Group } from "@/types";
 import { getAllTrips, getDashboardSummary } from "@/services/tripService";
+import { getAllGroups, getGroupStats } from "@/services/groupService";
 import { CreateTripDialog } from "./CreateTripDialog";
+import { CreateGroupDialog } from "./CreateGroupDialog";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { format, parseISO } from "date-fns";
 import { User, Briefcase, DollarSign, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TripSearch } from "./TripSearch";
+import { GroupCard } from "./GroupCard";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
+  const [activeGroupTab, setActiveGroupTab] = useState("all");
+  const [filteredGroups, setFilteredGroups] = useState<Group[]>([]);
   
   const {
     data: trips,
@@ -26,6 +30,15 @@ export default function Dashboard() {
   });
   
   const {
+    data: groups,
+    isLoading: isGroupsLoading,
+    error: groupsError,
+  } = useQuery({
+    queryKey: ["groups"],
+    queryFn: getAllGroups,
+  });
+  
+  const {
     data: summary,
     isLoading: isSummaryLoading,
     error: summaryError,
@@ -34,11 +47,25 @@ export default function Dashboard() {
     queryFn: getDashboardSummary,
   });
   
+  const {
+    data: groupStats,
+    isLoading: isGroupStatsLoading,
+  } = useQuery({
+    queryKey: ["group-stats"],
+    queryFn: getGroupStats,
+  });
+  
   useEffect(() => {
     if (trips) {
       filterTrips(trips, activeTab);
     }
   }, [trips, activeTab]);
+  
+  useEffect(() => {
+    if (groups) {
+      filterGroups(groups, activeGroupTab);
+    }
+  }, [groups, activeGroupTab]);
   
   const filterTrips = (tripsToFilter: Trip[], filter: string) => {
     switch (filter) {
@@ -55,14 +82,59 @@ export default function Dashboard() {
     }
   };
   
+  const filterGroups = (groupsToFilter: Group[], filter: string) => {
+    switch (filter) {
+      case "active":
+        setFilteredGroups(groupsToFilter.filter(group => group.status === "active"));
+        break;
+      case "completed":
+        setFilteredGroups(groupsToFilter.filter(group => group.status === "completed"));
+        break;
+      case "all":
+      default:
+        setFilteredGroups(groupsToFilter);
+        break;
+    }
+  };
+  
   const handleSearchResults = (searchResults: Trip[]) => {
     filterTrips(searchResults, activeTab);
   };
   
-  const isLoading = isTripsLoading || isSummaryLoading;
-  const hasError = tripsError || summaryError;
+  const handleGroupSearch = (searchResults: Group[]) => {
+    filterGroups(searchResults, activeGroupTab);
+  };
+  
+  const handleDeleteGroup = async (groupId: string) => {
+    if (groups) {
+      const updatedGroups = groups.filter(group => group.id !== groupId);
+      setFilteredGroups(updatedGroups.filter(group => {
+        if (activeGroupTab === "active") return group.status === "active";
+        if (activeGroupTab === "completed") return group.status === "completed";
+        return true;
+      }));
+    }
+  };
+  
+  const handleCompleteGroup = async (groupId: string) => {
+    if (groups) {
+      const updatedGroups = groups.map(group => 
+        group.id === groupId ? { ...group, status: "completed" as const } : group
+      );
+      
+      setFilteredGroups(updatedGroups.filter(group => {
+        if (activeGroupTab === "active") return group.status === "active";
+        if (activeGroupTab === "completed") return group.status === "completed";
+        return true;
+      }));
+    }
+  };
+  
+  const isLoading = isTripsLoading || isSummaryLoading || isGroupsLoading || isGroupStatsLoading;
+  const hasError = tripsError || summaryError || groupsError;
   
   const totalTrips = summary?.totalTrips || 0;
+  const totalGroups = groupStats?.totalGroups || 0;
   
   return (
     <div className="p-6">
@@ -105,32 +177,96 @@ export default function Dashboard() {
         </div>
       )}
       
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl font-semibold">Your Trips</h2>
-        <div className="w-full sm:w-72">
-          <TripSearch onTripsFound={handleSearchResults} />
+      <div className="mb-10">
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h2 className="text-xl font-semibold">Your Trips</h2>
+          <div className="w-full sm:w-72">
+            <TripSearch onTripsFound={handleSearchResults} />
+          </div>
         </div>
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="all">All Trips</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all" className="mt-0">
+            <TripsGrid trips={filteredTrips} loading={isLoading} />
+          </TabsContent>
+          
+          <TabsContent value="active" className="mt-0">
+            <TripsGrid trips={filteredTrips} loading={isLoading} />
+          </TabsContent>
+          
+          <TabsContent value="completed" className="mt-0">
+            <TripsGrid trips={filteredTrips} loading={isLoading} />
+          </TabsContent>
+        </Tabs>
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">All Trips</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-        </TabsList>
+      <div className="mt-12">
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h2 className="text-xl font-semibold">Your Groups</h2>
+          <div className="w-full sm:w-72">
+            <input 
+              type="text" 
+              placeholder="Search groups..." 
+              className="w-full px-3 py-2 border rounded-md"
+              onChange={(e) => {
+                if (groups) {
+                  const query = e.target.value.toLowerCase();
+                  if (!query) {
+                    filterGroups(groups, activeGroupTab);
+                  } else {
+                    const filtered = groups.filter(group => 
+                      group.name.toLowerCase().includes(query) ||
+                      group.description?.toLowerCase().includes(query)
+                    );
+                    filterGroups(filtered, activeGroupTab);
+                  }
+                }
+              }}
+            />
+          </div>
+        </div>
         
-        <TabsContent value="all" className="mt-0">
-          <TripsGrid trips={filteredTrips} loading={isLoading} />
-        </TabsContent>
-        
-        <TabsContent value="active" className="mt-0">
-          <TripsGrid trips={filteredTrips} loading={isLoading} />
-        </TabsContent>
-        
-        <TabsContent value="completed" className="mt-0">
-          <TripsGrid trips={filteredTrips} loading={isLoading} />
-        </TabsContent>
-      </Tabs>
+        <Tabs value={activeGroupTab} onValueChange={setActiveGroupTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="all">All Groups</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all" className="mt-0">
+            <GroupsGrid 
+              groups={filteredGroups} 
+              loading={isLoading} 
+              onDelete={handleDeleteGroup}
+              onComplete={handleCompleteGroup}
+            />
+          </TabsContent>
+          
+          <TabsContent value="active" className="mt-0">
+            <GroupsGrid 
+              groups={filteredGroups} 
+              loading={isLoading} 
+              onDelete={handleDeleteGroup}
+              onComplete={handleCompleteGroup}
+            />
+          </TabsContent>
+          
+          <TabsContent value="completed" className="mt-0">
+            <GroupsGrid 
+              groups={filteredGroups} 
+              loading={isLoading} 
+              onDelete={handleDeleteGroup}
+              onComplete={handleCompleteGroup}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
@@ -300,6 +436,71 @@ function CreateTripCard() {
             Plan a new adventure with friends
           </p>
           <CreateTripDialog />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface GroupsGridProps {
+  groups: Group[] | undefined;
+  loading: boolean;
+  onDelete: (id: string) => void;
+  onComplete: (id: string) => void;
+}
+
+function GroupsGrid({ groups, loading, onDelete, onComplete }: GroupsGridProps) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <Skeleton key={i} className="h-[200px] rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+  
+  if (!groups?.length) {
+    return (
+      <div className="text-center py-12 border rounded-lg bg-muted/20">
+        <h3 className="text-lg font-medium mb-2">No groups found</h3>
+        <p className="text-muted-foreground mb-6">
+          Get started by creating your first group!
+        </p>
+        <CreateGroupDialog>
+          <button className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+            Create Your First Group
+          </button>
+        </CreateGroupDialog>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {groups.map((group) => (
+        <GroupCard 
+          key={group.id} 
+          group={group} 
+          onDelete={onDelete}
+          onComplete={onComplete}
+        />
+      ))}
+      <CreateGroupCard />
+    </div>
+  );
+}
+
+function CreateGroupCard() {
+  return (
+    <Card className="border-dashed hover:border-primary/50 transition-colors">
+      <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
+        <div className="py-8">
+          <h3 className="font-medium mb-2">Create New Group</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Manage expenses with recurring participants
+          </p>
+          <CreateGroupDialog />
         </div>
       </CardContent>
     </Card>

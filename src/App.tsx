@@ -44,6 +44,14 @@ const App = () => {
                   } 
                 />
                 <Route 
+                  path="/groups/:id" 
+                  element={
+                    <ProtectedRoute>
+                      <TripDetail />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
                   path="/settings" 
                   element={
                     <ProtectedRoute>

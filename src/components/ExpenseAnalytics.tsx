@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Trip, Expense, Participant } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -547,7 +546,7 @@ export function ExpenseAnalytics({ trip }: ExpenseAnalyticsProps) {
                       <Bar 
                         dataKey="balance" 
                         name="Balance" 
-                        fill={(data) => getBalanceColor(data.balance)}
+                        fill={data => (data.balance >= 0 ? "#00C49F" : "#FF8042")}
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -583,7 +582,7 @@ export function ExpenseAnalytics({ trip }: ExpenseAnalyticsProps) {
                       <Bar 
                         dataKey="balance" 
                         name="Net Balance" 
-                        fill={(data) => getBalanceColor(data.balance)}
+                        fill={data => (data.balance >= 0 ? "#00C49F" : "#FF8042")}
                       />
                     </BarChart>
                   </ResponsiveContainer>

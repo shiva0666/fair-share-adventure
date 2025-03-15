@@ -57,7 +57,7 @@ export function TripSummary({ trip }: TripSummaryProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard 
           title="Total Expenses" 
-          value={formatCurrency(totalExpenses)} 
+          value={formatCurrency(totalExpenses, trip.currency)} 
           icon={<Receipt className="h-8 w-8 text-primary" />}
         />
         <SummaryCard 
@@ -67,7 +67,7 @@ export function TripSummary({ trip }: TripSummaryProps) {
         />
         <SummaryCard 
           title="Daily Average" 
-          value={formatCurrency(expensesPerDay)} 
+          value={formatCurrency(expensesPerDay, trip.currency)} 
           icon={<Calendar className="h-8 w-8 text-primary" />}
         />
         <SummaryCard 

@@ -126,9 +126,32 @@ export const generateSettlements = (trip: Trip): Settlement[] => {
   return settlements;
 };
 
-// Format currency
-export const formatCurrency = (amount: number): string => {
-  return `₹${amount.toFixed(2)}`;
+// Format currency with support for different currency codes
+export const formatCurrency = (amount: number, currencyCode?: string): string => {
+  const code = currencyCode || 'USD';
+  
+  // Currency symbols for common currencies
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    INR: '₹',
+    AUD: 'A$',
+    CAD: 'C$',
+    JPY: '¥',
+    CNY: '¥',
+    SGD: 'S$',
+    AED: 'د.إ'
+  };
+  
+  const symbol = CURRENCY_SYMBOLS[code] || code;
+  
+  // Special case for JPY which doesn't use decimals
+  if (code === 'JPY') {
+    return `${symbol}${Math.round(amount)}`;
+  }
+  
+  return `${symbol}${amount.toFixed(2)}`;
 };
 
 // Calculate total expenses in a trip

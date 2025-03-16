@@ -100,8 +100,12 @@ const TripsPage = () => {
 
       {showAddTripDialog && (
         <CreateTripDialog
-          children={null}
-          onOpenChange={(isOpen) => setShowAddTripDialog(isOpen)}
+          onTripCreated={() => {
+            refetch();
+            setShowAddTripDialog(false);
+          }}
+          open={showAddTripDialog}
+          onOpenChange={setShowAddTripDialog}
         />
       )}
     </div>

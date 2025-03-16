@@ -100,8 +100,12 @@ const GroupsPage = () => {
 
       {showAddGroupDialog && (
         <CreateGroupDialog
-          children={null}
-          onOpenChange={(isOpen) => setShowAddGroupDialog(isOpen)}
+          onGroupCreated={() => {
+            refetch();
+            setShowAddGroupDialog(false);
+          }}
+          open={showAddGroupDialog}
+          onOpenChange={setShowAddGroupDialog}
         />
       )}
     </div>

@@ -11,8 +11,23 @@ import { Button } from "@/components/ui/button";
 import { getTripById } from "@/services/tripService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpenseAnalytics } from "@/components/ExpenseAnalytics";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
+import { 
+  ArrowLeft, 
+  FileText, 
+  Image, 
+  Receipt, 
+  Download,
+  Users
+} from "lucide-react";
+import { TripDetailsView } from "@/components/TripDetailsView";
+import { TripGallery } from "@/components/TripGallery";
+import { TripBills } from "@/components/TripBills";
 
 const TripDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +50,7 @@ const TripDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar tripName={trip.name} currentTrip={trip} />
+      <Navbar currentTrip={trip} />
       <main className="container mx-auto p-6">
         <div className="flex items-center mb-6">
           <Button 
@@ -51,10 +66,31 @@ const TripDetail = () => {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="settlements">Settlements</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsTrigger value="expenses">
+              <Receipt className="mr-2 h-4 w-4" />
+              Expenses
+            </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <FileText className="mr-2 h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="settlements">
+              <Receipt className="mr-2 h-4 w-4" />
+              Settlements
+            </TabsTrigger>
+            <TabsTrigger value="details">
+              <Users className="mr-2 h-4 w-4" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="gallery">
+              <Image className="mr-2 h-4 w-4" />
+              Gallery
+            </TabsTrigger>
+            <TabsTrigger value="bills">
+              <FileText className="mr-2 h-4 w-4" />
+              Bills
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="expenses" className="mt-0">
@@ -65,6 +101,14 @@ const TripDetail = () => {
               <div className="space-y-6">
                 <TripSummary trip={trip} />
                 <TripParticipants trip={trip} />
+                <Button 
+                  className="w-full"
+                  onClick={() => window.print()}
+                  variant="outline"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Report
+                </Button>
               </div>
             </div>
           </TabsContent>
@@ -82,6 +126,18 @@ const TripDetail = () => {
                 <SettlementView trip={trip} />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="details" className="mt-0">
+            <TripDetailsView trip={trip} onUpdate={() => refetch()} />
+          </TabsContent>
+
+          <TabsContent value="gallery" className="mt-0">
+            <TripGallery trip={trip} />
+          </TabsContent>
+
+          <TabsContent value="bills" className="mt-0">
+            <TripBills trip={trip} />
           </TabsContent>
         </Tabs>
       </main>

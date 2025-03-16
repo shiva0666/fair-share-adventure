@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -10,9 +9,24 @@ import { Button } from "@/components/ui/button";
 import { getGroupById } from "@/services/groupService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpenseAnalytics } from "@/components/ExpenseAnalytics";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
+import { 
+  ArrowLeft, 
+  FileText, 
+  Image, 
+  Receipt, 
+  Download,
+  Users
+} from "lucide-react";
 import { Group } from "@/types";
+import { GroupDetailsView } from "@/components/GroupDetailsView";
+import { GroupGallery } from "@/components/GroupGallery";
+import { GroupBills } from "@/components/GroupBills";
 
 // Create a type that mimics the Trip structure but with Group properties
 interface GroupAsTripType {
@@ -72,10 +86,31 @@ const GroupDetail = () => {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="settlements">Settlements</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsTrigger value="expenses">
+              <Receipt className="mr-2 h-4 w-4" />
+              Expenses
+            </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <FileText className="mr-2 h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="settlements">
+              <Receipt className="mr-2 h-4 w-4" />
+              Settlements
+            </TabsTrigger>
+            <TabsTrigger value="details">
+              <Users className="mr-2 h-4 w-4" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="gallery">
+              <Image className="mr-2 h-4 w-4" />
+              Gallery
+            </TabsTrigger>
+            <TabsTrigger value="bills">
+              <FileText className="mr-2 h-4 w-4" />
+              Bills
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="expenses" className="mt-0">
@@ -86,6 +121,14 @@ const GroupDetail = () => {
               <div className="space-y-6">
                 <GroupSummary group={group} />
                 <TripParticipants trip={groupAsTrip} />
+                <Button 
+                  className="w-full"
+                  onClick={() => window.print()}
+                  variant="outline"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Report
+                </Button>
               </div>
             </div>
           </TabsContent>
@@ -103,6 +146,18 @@ const GroupDetail = () => {
                 <SettlementView trip={groupAsTrip} />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="details" className="mt-0">
+            <GroupDetailsView group={group} onUpdate={() => refetch()} />
+          </TabsContent>
+
+          <TabsContent value="gallery" className="mt-0">
+            <GroupGallery group={group} />
+          </TabsContent>
+
+          <TabsContent value="bills" className="mt-0">
+            <GroupBills group={group} />
           </TabsContent>
         </Tabs>
       </main>

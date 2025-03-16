@@ -8,9 +8,12 @@ import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import TripDetail from "./pages/TripDetail";
+import GroupDetail from "./pages/GroupDetail";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
 import Settings from "./pages/Settings";
+import TripsPage from "./pages/TripsPage";
+import GroupsPage from "./pages/GroupsPage";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -36,7 +39,23 @@ const App = () => {
                   } 
                 />
                 <Route 
-                  path="/trip/:id" 
+                  path="/trips" 
+                  element={
+                    <ProtectedRoute>
+                      <TripsPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/groups" 
+                  element={
+                    <ProtectedRoute>
+                      <GroupsPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/trips/:id" 
                   element={
                     <ProtectedRoute>
                       <TripDetail />
@@ -47,7 +66,7 @@ const App = () => {
                   path="/groups/:id" 
                   element={
                     <ProtectedRoute>
-                      <TripDetail />
+                      <GroupDetail />
                     </ProtectedRoute>
                   } 
                 />

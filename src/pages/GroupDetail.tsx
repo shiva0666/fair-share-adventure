@@ -3,25 +3,24 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
-import { TripSummary } from "@/components/TripSummary";
 import { ExpensesView } from "@/components/ExpensesView";
 import { SettlementView } from "@/components/SettlementView";
 import { TripParticipants } from "@/components/TripParticipants";
 import { Button } from "@/components/ui/button";
-import { getTripById } from "@/services/tripService";
+import { getGroupById } from "@/services/groupService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpenseAnalytics } from "@/components/ExpenseAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
 
-const TripDetail = () => {
+const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<string>("expenses");
   const navigate = useNavigate();
   
-  const { data: trip, isLoading, error, refetch } = useQuery({
-    queryKey: ["trip", id],
-    queryFn: () => getTripById(id || ""),
+  const { data: group, isLoading, error, refetch } = useQuery({
+    queryKey: ["group", id],
+    queryFn: () => getGroupById(id || ""),
     enabled: !!id,
   });
 
@@ -29,13 +28,13 @@ const TripDetail = () => {
     return <LoadingState />;
   }
 
-  if (error || !trip) {
+  if (error || !group) {
     return <ErrorState />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar tripName={trip.name} currentTrip={trip} />
+      <Navbar groupName={group.name} currentGroup={group} />
       <main className="container mx-auto p-6">
         <div className="flex items-center mb-6">
           <Button 
@@ -47,7 +46,7 @@ const TripDetail = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-bold">{trip.name}</h1>
+          <h1 className="text-2xl font-bold">{group.name}</h1>
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -60,31 +59,63 @@ const TripDetail = () => {
           <TabsContent value="expenses" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
-                <ExpensesView trip={trip} onRefresh={() => refetch()} />
+                <ExpensesView trip={group} onRefresh={() => refetch()} />
               </div>
               <div className="space-y-6">
-                <TripSummary trip={trip} />
-                <TripParticipants trip={trip} />
+                <GroupSummary group={group} />
+                <TripParticipants trip={group} />
               </div>
             </div>
           </TabsContent>
           
           <TabsContent value="analytics" className="mt-0">
-            <ExpenseAnalytics trip={trip} />
+            <ExpenseAnalytics trip={group} />
           </TabsContent>
           
           <TabsContent value="settlements" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
-                <ExpenseAnalytics trip={trip} />
+                <ExpenseAnalytics trip={group} />
               </div>
               <div>
-                <SettlementView trip={trip} />
+                <SettlementView trip={group} />
               </div>
             </div>
           </TabsContent>
         </Tabs>
       </main>
+    </div>
+  );
+};
+
+const GroupSummary = ({ group }: { group: any }) => {
+  const totalExpenses = group.expenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
+  
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm">
+      <h3 className="text-lg font-medium mb-4">Group Summary</h3>
+      <div className="space-y-3">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Status</span>
+          <span className="font-medium">{group.status.charAt(0).toUpperCase() + group.status.slice(1)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Participants</span>
+          <span className="font-medium">{group.participants.length}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Total Expenses</span>
+          <span className="font-medium">{group.expenses.length}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Total Amount</span>
+          <span className="font-medium">{group.currency || '₹'}{totalExpenses.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Created On</span>
+          <span className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</span>
+        </div>
+      </div>
     </div>
   );
 };
@@ -123,12 +154,12 @@ const ErrorState = () => {
           </Button>
         </div>
         <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-2">Trip Not Found</h2>
+          <h2 className="text-2xl font-bold mb-2">Group Not Found</h2>
           <p className="text-muted-foreground mb-6">
-            The trip you're looking for doesn't exist or has been deleted.
+            The group you're looking for doesn't exist or has been deleted.
           </p>
           <Button asChild>
-            <a href="/trips">Return to Trips</a>
+            <a href="/groups">Return to Groups</a>
           </Button>
         </div>
       </main>
@@ -136,4 +167,4 @@ const ErrorState = () => {
   );
 };
 
-export default TripDetail;
+export default GroupDetail;

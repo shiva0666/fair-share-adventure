@@ -13,3 +13,11 @@ export function formatDate(dateString: string): string {
     day: 'numeric'
   });
 }
+
+export function getTripDetailUrl(tripId: string): string {
+  return `/trips/${tripId}`;
+}
+
+export function getGroupDetailUrl(groupId: string): string {
+  return `/groups/${groupId}`;
+}

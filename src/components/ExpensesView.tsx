@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Trip, Expense } from "@/types";
 import { AddExpenseDialog } from "./AddExpenseDialog";
@@ -23,6 +24,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { generateExpensePDF } from "@/utils/pdfGenerator";
+import { TripChat } from "./TripChat";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -143,6 +145,9 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
             </Card>
           ))}
           <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
+          
+          {/* Add Trip Chat component */}
+          <TripChat trip={trip} />
         </>
       )}
     </div>

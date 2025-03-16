@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Trip, Group } from "@/types";
@@ -13,6 +13,8 @@ import { User, Briefcase, DollarSign, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TripSearch } from "./TripSearch";
 import { GroupCard } from "./GroupCard";
+import { getTripDetailUrl, getGroupDetailUrl } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
@@ -368,11 +370,12 @@ interface TripCardProps {
 function TripCard({ trip }: TripCardProps) {
   const totalExpenses = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const formatDate = (dateString: string) => format(parseISO(dateString), "MMM d, yyyy");
+  const navigate = useNavigate();
   
   return (
-    <Card className="transition-all hover:shadow-md">
+    <Card className="transition-all hover:shadow-md cursor-pointer" onClick={() => navigate(getTripDetailUrl(trip.id))}>
       <CardContent className="p-0">
-        <a href={`/trip/${trip.id}`} className="block p-6">
+        <div className="block p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="font-bold text-lg">{trip.name}</h3>
@@ -410,7 +413,7 @@ function TripCard({ trip }: TripCardProps) {
                   className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium border-2 border-background"
                   title={participant.name}
                 >
-                  {participant.name.charAt(0)}
+                  {participant.name.charAt(0).toUpperCase()}
                 </div>
               ))}
               {trip.participants.length > 5 && (
@@ -420,7 +423,7 @@ function TripCard({ trip }: TripCardProps) {
               )}
             </div>
           )}
-        </a>
+        </div>
       </CardContent>
     </Card>
   );

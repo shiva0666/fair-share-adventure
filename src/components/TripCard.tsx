@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Trip } from "@/types";
@@ -27,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import { getTripDetailUrl } from "@/lib/utils";
 
 interface TripCardProps {
   trip: Trip;
@@ -49,13 +49,11 @@ export function TripCard({
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [showHideDialog, setShowHideDialog] = useState(false);
 
-  // Calculate total expenses
   const totalExpenses = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Only navigate if the click was not on a button
     if (!(e.target as HTMLElement).closest('button')) {
-      navigate(`/trips/${trip.id}`);
+      navigate(getTripDetailUrl(trip.id));
     }
   };
 
@@ -92,8 +90,7 @@ export function TripCard({
     if (onEdit) {
       onEdit(trip);
     } else {
-      // If no edit handler is provided, just navigate to the trip detail page
-      navigate(`/trips/${trip.id}`);
+      navigate(getTripDetailUrl(trip.id));
     }
   };
 
@@ -198,7 +195,7 @@ export function TripCard({
             className="w-full"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/trips/${trip.id}`);
+              navigate(getTripDetailUrl(trip.id));
             }}
           >
             View Details

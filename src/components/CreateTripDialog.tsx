@@ -13,18 +13,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Participant, SupportedCurrency, Trip } from "@/types";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { createTrip } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface CreateTripDialogProps {
   children?: React.ReactNode;
 }
 
 export function CreateTripDialog({ children }: CreateTripDialogProps) {
+  // Internal state for dialog
   const [open, setOpen] = useState(false);
   const [tripName, setTripName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -34,6 +36,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
     { id: uuidv4(), name: "" },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDetailsForParticipant, setShowDetailsForParticipant] = useState<string | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -45,6 +48,9 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
   const handleRemoveParticipant = (id: string) => {
     if (participants.length > 1) {
       setParticipants(participants.filter((p) => p.id !== id));
+      if (showDetailsForParticipant === id) {
+        setShowDetailsForParticipant(null);
+      }
     } else {
       toast({
         title: "Cannot remove",
@@ -54,10 +60,14 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
     }
   };
 
-  const handleParticipantChange = (id: string, name: string) => {
+  const handleParticipantChange = (id: string, field: keyof Omit<Participant, 'balance'>, value: string) => {
     setParticipants(
-      participants.map((p) => (p.id === id ? { ...p, name } : p))
+      participants.map((p) => (p.id === id ? { ...p, [field]: value } : p))
     );
+  };
+
+  const toggleParticipantDetails = (id: string) => {
+    setShowDetailsForParticipant(showDetailsForParticipant === id ? null : id);
   };
 
   const handleSubmit = async () => {
@@ -124,7 +134,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
         endDate,
         participants: participantsWithBalance,
         status: 'active',
-        currency // Add the currency field
+        currency
       });
       
       // Refetch trips
@@ -231,25 +241,58 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </div>
-            <div className="space-y-2 max-h-[200px] overflow-y-auto py-2">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto py-2">
               {participants.map((participant, index) => (
-                <div key={participant.id} className="flex items-center gap-2">
-                  <Input
-                    placeholder={`Participant ${index + 1}`}
-                    value={participant.name}
-                    onChange={(e) =>
-                      handleParticipantChange(participant.id, e.target.value)
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveParticipant(participant.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Collapsible 
+                  key={participant.id} 
+                  open={showDetailsForParticipant === participant.id}
+                  onOpenChange={() => toggleParticipantDetails(participant.id)}
+                  className="border rounded-md p-2"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Input
+                      placeholder={`Participant ${index + 1}`}
+                      value={participant.name || ""}
+                      onChange={(e) => handleParticipantChange(participant.id, "name", e.target.value)}
+                    />
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="icon" type="button">
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveParticipant(participant.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <CollapsibleContent className="space-y-2 mt-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor={`email-${participant.id}`}>Email (Optional)</Label>
+                      <Input
+                        id={`email-${participant.id}`}
+                        type="email"
+                        placeholder="Email address"
+                        value={participant.email || ""}
+                        onChange={(e) => handleParticipantChange(participant.id, "email", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`phone-${participant.id}`}>Phone (Optional)</Label>
+                      <Input
+                        id={`phone-${participant.id}`}
+                        type="tel"
+                        placeholder="Phone number"
+                        value={participant.phone || ""}
+                        onChange={(e) => handleParticipantChange(participant.id, "phone", e.target.value)}
+                      />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               ))}
             </div>
           </div>

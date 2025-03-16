@@ -12,6 +12,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExpenseAnalytics } from "@/components/ExpenseAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
+import { Group } from "@/types";
+
+// Create a type that mimics the Trip structure but with Group properties
+interface GroupAsTripType {
+  id: string;
+  name: string;
+  participants: any[];
+  expenses: any[];
+  status: 'active' | 'completed';
+  createdAt: string;
+  currency?: string;
+  // Adding missing Trip properties with placeholder values
+  startDate: string;
+  endDate: string;
+}
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,9 +47,16 @@ const GroupDetail = () => {
     return <ErrorState />;
   }
 
+  // Convert Group to a Trip-compatible object for components that expect Trip
+  const groupAsTrip: GroupAsTripType = {
+    ...group,
+    startDate: new Date().toISOString(), // Placeholder
+    endDate: new Date().toISOString(), // Placeholder
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar groupName={group.name} currentGroup={group} />
+      <Navbar currentTrip={groupAsTrip} />
       <main className="container mx-auto p-6">
         <div className="flex items-center mb-6">
           <Button 
@@ -59,26 +81,26 @@ const GroupDetail = () => {
           <TabsContent value="expenses" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
-                <ExpensesView trip={group} onRefresh={() => refetch()} />
+                <ExpensesView trip={groupAsTrip} onRefresh={() => refetch()} />
               </div>
               <div className="space-y-6">
                 <GroupSummary group={group} />
-                <TripParticipants trip={group} />
+                <TripParticipants trip={groupAsTrip} />
               </div>
             </div>
           </TabsContent>
           
           <TabsContent value="analytics" className="mt-0">
-            <ExpenseAnalytics trip={group} />
+            <ExpenseAnalytics trip={groupAsTrip} />
           </TabsContent>
           
           <TabsContent value="settlements" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
-                <ExpenseAnalytics trip={group} />
+                <ExpenseAnalytics trip={groupAsTrip} />
               </div>
               <div>
-                <SettlementView trip={group} />
+                <SettlementView trip={groupAsTrip} />
               </div>
             </div>
           </TabsContent>
@@ -88,8 +110,8 @@ const GroupDetail = () => {
   );
 };
 
-const GroupSummary = ({ group }: { group: any }) => {
-  const totalExpenses = group.expenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
+const GroupSummary = ({ group }: { group: Group }) => {
+  const totalExpenses = group.expenses?.reduce((sum: number, expense: any) => sum + expense.amount, 0) || 0;
   
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -101,11 +123,11 @@ const GroupSummary = ({ group }: { group: any }) => {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Participants</span>
-          <span className="font-medium">{group.participants.length}</span>
+          <span className="font-medium">{group.participants?.length || 0}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Total Expenses</span>
-          <span className="font-medium">{group.expenses.length}</span>
+          <span className="font-medium">{group.expenses?.length || 0}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Total Amount</span>

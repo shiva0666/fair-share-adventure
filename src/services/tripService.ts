@@ -182,7 +182,7 @@ export const addExpense = async (tripId: string, expense: Omit<Expense, 'id'>): 
       };
       
       // Recalculate balances
-      const tripWithBalances = updateParticipantBalances(updatedTrip);
+      const tripWithBalances = updateParticipantBalances(updatedTrip) as Trip;
       
       trips[tripIndex] = tripWithBalances;
       saveTrips(trips);
@@ -218,7 +218,7 @@ export const updateExpense = async (tripId: string, updatedExpense: Expense): Pr
       };
       
       // Recalculate balances
-      const tripWithBalances = updateParticipantBalances(updatedTrip);
+      const tripWithBalances = updateParticipantBalances(updatedTrip) as Trip;
       
       trips[tripIndex] = tripWithBalances;
       saveTrips(trips);

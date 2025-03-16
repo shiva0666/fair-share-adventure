@@ -1,4 +1,4 @@
-import { Expense, Participant, Settlement, Trip } from "@/types";
+import { Expense, Participant, Settlement, Trip, Group } from "@/types";
 
 // Calculate each participant's share of an expense
 export const calculateExpenseShare = (expense: Expense, participantId: string): number => {

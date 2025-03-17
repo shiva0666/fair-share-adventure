@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { TripsList } from "@/components/TripsList";
@@ -56,6 +55,11 @@ const TripsPage = () => {
     }
   };
 
+  const handleTripCreated = () => {
+    refetch();
+    setShowAddTripDialog(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -100,8 +104,9 @@ const TripsPage = () => {
 
       {showAddTripDialog && (
         <CreateTripDialog 
-          children={null}
-          onOpenChange={setShowAddTripDialog}
+          open={showAddTripDialog}
+          onClose={() => setShowAddTripDialog(false)}
+          onTripsCreated={handleTripCreated}
         />
       )}
     </div>

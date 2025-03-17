@@ -28,6 +28,8 @@ import {
 import { TripDetailsView } from "@/components/TripDetailsView";
 import { TripGallery } from "@/components/TripGallery";
 import { TripBills } from "@/components/TripBills";
+import { TripChat } from "@/components/TripChat";
+import { downloadTripReport } from "@/utils/expenseCalculator";
 
 const TripDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,8 +47,12 @@ const TripDetail = () => {
   }
 
   if (error || !trip) {
-    return <ErrorState />;
+    return <ErrorState error={error instanceof Error ? error.message : 'Unknown error'} />;
   }
+  
+  const handleDownloadReport = () => {
+    downloadTripReport(trip);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -69,27 +75,33 @@ const TripDetail = () => {
           <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="expenses">
               <Receipt className="mr-2 h-4 w-4" />
-              Expenses
+              <span className="hidden sm:inline">Expenses</span>
+              <span className="sm:hidden">Exp</span>
             </TabsTrigger>
             <TabsTrigger value="analytics">
               <FileText className="mr-2 h-4 w-4" />
-              Analytics
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Anly</span>
             </TabsTrigger>
             <TabsTrigger value="settlements">
               <Receipt className="mr-2 h-4 w-4" />
-              Settlements
+              <span className="hidden sm:inline">Settlements</span>
+              <span className="sm:hidden">Sett</span>
             </TabsTrigger>
             <TabsTrigger value="details">
               <Users className="mr-2 h-4 w-4" />
-              Details
+              <span className="hidden sm:inline">Details</span>
+              <span className="sm:hidden">Det</span>
             </TabsTrigger>
             <TabsTrigger value="gallery">
               <Image className="mr-2 h-4 w-4" />
-              Gallery
+              <span className="hidden sm:inline">Gallery</span>
+              <span className="sm:hidden">Gall</span>
             </TabsTrigger>
             <TabsTrigger value="bills">
               <FileText className="mr-2 h-4 w-4" />
-              Bills
+              <span className="hidden sm:inline">Bills</span>
+              <span className="sm:hidden">Bill</span>
             </TabsTrigger>
           </TabsList>
           
@@ -97,18 +109,21 @@ const TripDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <ExpensesView trip={trip} onRefresh={() => refetch()} />
+                <div className="space-y-4">
+                  <Button 
+                    className="w-full"
+                    onClick={handleDownloadReport}
+                    variant="outline"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Report
+                  </Button>
+                  <TripChat trip={trip} />
+                </div>
               </div>
               <div className="space-y-6">
                 <TripSummary trip={trip} />
                 <TripParticipants trip={trip} />
-                <Button 
-                  className="w-full"
-                  onClick={() => window.print()}
-                  variant="outline"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Report
-                </Button>
               </div>
             </div>
           </TabsContent>
@@ -162,7 +177,7 @@ const LoadingState = () => {
   );
 };
 
-const ErrorState = () => {
+const ErrorState = ({ error }: { error: string }) => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-gray-50">
@@ -180,9 +195,10 @@ const ErrorState = () => {
         </div>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold mb-2">Trip Not Found</h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-2">
             The trip you're looking for doesn't exist or has been deleted.
           </p>
+          <p className="text-sm text-destructive mb-6">{error}</p>
           <Button asChild>
             <a href="/trips">Return to Trips</a>
           </Button>

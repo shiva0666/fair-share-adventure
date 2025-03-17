@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LoginForm from "@/components/auth/LoginForm";
 import SignupForm from "@/components/auth/SignupForm";
@@ -39,7 +39,6 @@ const Auth = () => {
               </TabsContent>
             </Tabs>
           </CardContent>
-          {/* Footer removed to eliminate the "OR" text */}
         </Card>
       </div>
     </div>

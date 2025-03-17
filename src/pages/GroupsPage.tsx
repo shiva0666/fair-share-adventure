@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -56,6 +55,11 @@ const GroupsPage = () => {
     }
   };
 
+  const handleGroupCreated = () => {
+    refetch();
+    setShowAddGroupDialog(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -100,8 +104,9 @@ const GroupsPage = () => {
 
       {showAddGroupDialog && (
         <CreateGroupDialog 
-          children={null}
-          onOpenChange={setShowAddGroupDialog}
+          open={showAddGroupDialog}
+          onClose={() => setShowAddGroupDialog(false)}
+          onGroupCreated={handleGroupCreated}
         />
       )}
     </div>

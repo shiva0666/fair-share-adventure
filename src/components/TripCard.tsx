@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Trip } from "@/types";
@@ -34,6 +35,7 @@ interface TripCardProps {
   onComplete: (id: string) => void;
   onEdit?: (trip: Trip) => void;
   onHide?: (id: string) => void;
+  variant?: "default" | "compact";
 }
 
 export function TripCard({ 
@@ -41,7 +43,8 @@ export function TripCard({
   onDelete, 
   onComplete, 
   onEdit, 
-  onHide 
+  onHide,
+  variant = "default"
 }: TripCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -99,14 +102,23 @@ export function TripCard({
       <Card 
         className={cn(
           "overflow-hidden transition-all duration-300 group hover:shadow-md cursor-pointer",
-          trip.status === "completed" && "bg-muted/50"
+          trip.status === "completed" && "bg-muted/50",
+          variant === "compact" && "h-full"
         )}
         onClick={handleCardClick}
       >
-        <CardContent className="p-6">
+        <CardContent className={cn(
+          "p-6",
+          variant === "compact" && "p-4"
+        )}>
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h3 className="text-xl font-semibold line-clamp-1">{trip.name}</h3>
+              <h3 className={cn(
+                "font-semibold line-clamp-1",
+                variant === "default" ? "text-xl" : "text-lg"
+              )}>
+                {trip.name}
+              </h3>
               <div className="flex items-center text-sm text-muted-foreground mt-1">
                 <Calendar className="mr-1 h-4 w-4" />
                 <span>
@@ -188,10 +200,13 @@ export function TripCard({
           </div>
         </CardContent>
         
-        <CardFooter className="bg-muted/50 px-6 py-3">
+        <CardFooter className={cn(
+          "bg-muted/50 px-6 py-3",
+          variant === "compact" && "px-4 py-2"
+        )}>
           <Button 
             variant="outline" 
-            size="sm" 
+            size={variant === "compact" ? "sm" : "default"}
             className="w-full"
             onClick={(e) => {
               e.stopPropagation();

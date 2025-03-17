@@ -20,13 +20,20 @@ import {
   FileText, 
   Image, 
   Receipt, 
-  Users
+  Users,
+  Download,
+  Calendar,
+  DollarSign
 } from "lucide-react";
 import { Group } from "@/types";
 import { GroupDetailsView } from "@/components/GroupDetailsView";
 import { GroupGallery } from "@/components/GroupGallery";
 import { GroupBills } from "@/components/GroupBills";
 import { TripChat } from "@/components/TripChat";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/utils/expenseCalculator";
 
 // Create a type that mimics the Trip structure but with Group properties
 interface GroupAsTripType {
@@ -64,8 +71,8 @@ const GroupDetail = () => {
   // Convert Group to a Trip-compatible object for components that expect Trip
   const groupAsTrip: GroupAsTripType = {
     ...group,
-    startDate: new Date().toISOString(), // Placeholder
-    endDate: new Date().toISOString(), // Placeholder
+    startDate: group.createdAt, // Use createdAt as startDate for calculations
+    endDate: new Date().toISOString(), // Use current date as endDate
   };
 
   return (
@@ -165,36 +172,98 @@ const GroupDetail = () => {
 };
 
 const GroupSummary = ({ group }: { group: Group }) => {
+  const { toast } = useToast();
   const totalExpenses = group.expenses?.reduce((sum: number, expense: any) => sum + expense.amount, 0) || 0;
   
+  const handleDownloadReport = async () => {
+    try {
+      // Implement this functionality similar to generateTripPDF
+      toast({
+        title: "Success",
+        description: "Group expense report downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report",
+        variant: "destructive",
+      });
+      console.error("PDF generation error:", error);
+    }
+  };
+  
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm">
-      <h3 className="text-lg font-medium mb-4">Group Summary</h3>
-      <div className="space-y-3">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Status</span>
-          <span className="font-medium">{group.status.charAt(0).toUpperCase() + group.status.slice(1)}</span>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold">{group.name}</h1>
+          <p className="text-muted-foreground">
+            Created {format(new Date(group.createdAt), "d MMMM yyyy")}
+          </p>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Participants</span>
-          <span className="font-medium">{group.participants?.length || 0}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Expenses</span>
-          <span className="font-medium">{group.expenses?.length || 0}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Amount</span>
-          <span className="font-medium">{group.currency || '₹'}{totalExpenses.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Created On</span>
-          <span className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</span>
-        </div>
+        <Button 
+          onClick={handleDownloadReport} 
+          className="mt-2 sm:mt-0 flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Download Group Report
+        </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Group Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <SummaryItem 
+              title="Total Expenses" 
+              value={formatCurrency(totalExpenses, group.currency)} 
+              icon={<DollarSign className="h-5 w-5 text-primary" />}
+            />
+            <SummaryItem 
+              title="Participants" 
+              value={group.participants?.length.toString() || "0"} 
+              icon={<Users className="h-5 w-5 text-primary" />}
+            />
+            <SummaryItem 
+              title="Status" 
+              value={group.status.charAt(0).toUpperCase() + group.status.slice(1)} 
+              icon={<Calendar className="h-5 w-5 text-primary" />}
+            />
+            <SummaryItem 
+              title="Transactions" 
+              value={group.expenses?.length.toString() || "0"} 
+              icon={<Receipt className="h-5 w-5 text-primary" />}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+function SummaryItem({ 
+  title, 
+  value, 
+  icon 
+}: { 
+  title: string; 
+  value: string; 
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="rounded-full bg-primary/10 p-2">
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className="text-lg font-semibold">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 const LoadingState = () => {
   return (

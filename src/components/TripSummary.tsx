@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, calculateTotalExpenses } from "@/utils/expenseCalculator";
 import { generateTripPDF } from "@/utils/pdfGenerator";
 import { Trip } from "@/types";
-import { Download, Users, Receipt, Calendar } from "lucide-react";
+import { Download, Calendar, DollarSign, Receipt, Users } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -54,33 +54,40 @@ export function TripSummary({ trip }: TripSummaryProps) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard 
-          title="Total Expenses" 
-          value={formatCurrency(totalExpenses, trip.currency)} 
-          icon={<Receipt className="h-8 w-8 text-primary" />}
-        />
-        <SummaryCard 
-          title="Participants" 
-          value={trip.participants.length.toString()} 
-          icon={<Users className="h-8 w-8 text-primary" />}
-        />
-        <SummaryCard 
-          title="Daily Average" 
-          value={formatCurrency(expensesPerDay, trip.currency)} 
-          icon={<Calendar className="h-8 w-8 text-primary" />}
-        />
-        <SummaryCard 
-          title="Transactions" 
-          value={trip.expenses.length.toString()} 
-          icon={<Receipt className="h-8 w-8 text-primary" />}
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Trip Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <SummaryItem 
+              title="Total Expenses" 
+              value={formatCurrency(totalExpenses, trip.currency)} 
+              icon={<DollarSign className="h-5 w-5 text-primary" />}
+            />
+            <SummaryItem 
+              title="Participants" 
+              value={trip.participants.length.toString()} 
+              icon={<Users className="h-5 w-5 text-primary" />}
+            />
+            <SummaryItem 
+              title="Daily Average" 
+              value={formatCurrency(expensesPerDay, trip.currency)} 
+              icon={<Calendar className="h-5 w-5 text-primary" />}
+            />
+            <SummaryItem 
+              title="Transactions" 
+              value={trip.expenses.length.toString()} 
+              icon={<Receipt className="h-5 w-5 text-primary" />}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function SummaryCard({ 
+function SummaryItem({ 
   title, 
   value, 
   icon 
@@ -90,19 +97,15 @@ function SummaryCard({
   icon: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <h3 className="text-2xl font-bold mt-1">{value}</h3>
-          </div>
-          <div className="rounded-full bg-primary/10 p-2.5">
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-3">
+      <div className="rounded-full bg-primary/10 p-2">
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className="text-lg font-semibold">{value}</p>
+      </div>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,11 +23,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 interface CreateTripDialogProps {
   children?: React.ReactNode;
+  open?: boolean;
+  onClose?: () => void;
+  onTripsCreated?: () => void;
 }
 
-export function CreateTripDialog({ children }: CreateTripDialogProps) {
+export function CreateTripDialog({ children, open, onClose, onTripsCreated }: CreateTripDialogProps) {
   // Internal state for dialog
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(open || false);
   const [tripName, setTripName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -40,6 +43,20 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Handle external open state changes
+  React.useEffect(() => {
+    if (open !== undefined) {
+      setIsOpen(open);
+    }
+  }, [open]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setIsOpen(newOpen);
+    if (!newOpen && onClose) {
+      onClose();
+    }
+  };
 
   const handleAddParticipant = () => {
     setParticipants([...participants, { id: uuidv4(), name: "" }]);
@@ -151,7 +168,12 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
       setEndDate("");
       setCurrency("USD");
       setParticipants([{ id: uuidv4(), name: "" }]);
-      setOpen(false);
+      handleOpenChange(false);
+      
+      // Call the onTripsCreated callback if provided
+      if (onTripsCreated) {
+        onTripsCreated();
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -169,7 +191,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
   ];
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children || (
           <Button>
@@ -191,7 +213,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
               id="tripName"
               value={tripName}
               onChange={(e) => setTripName(e.target.value)}
-              placeholder="e.g., Goa Beach Vacation"
+              placeholder=""
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -251,7 +273,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Input
-                      placeholder={`Participant ${index + 1}`}
+                      placeholder=""
                       value={participant.name || ""}
                       onChange={(e) => handleParticipantChange(participant.id, "name", e.target.value)}
                     />
@@ -276,7 +298,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
                       <Input
                         id={`email-${participant.id}`}
                         type="email"
-                        placeholder="Email address"
+                        placeholder=""
                         value={participant.email || ""}
                         onChange={(e) => handleParticipantChange(participant.id, "email", e.target.value)}
                       />
@@ -286,7 +308,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
                       <Input
                         id={`phone-${participant.id}`}
                         type="tel"
-                        placeholder="Phone number"
+                        placeholder=""
                         value={participant.phone || ""}
                         onChange={(e) => handleParticipantChange(participant.id, "phone", e.target.value)}
                       />
@@ -301,7 +323,7 @@ export function CreateTripDialog({ children }: CreateTripDialogProps) {
           <Button 
             type="button" 
             variant="outline" 
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
           >
             Cancel

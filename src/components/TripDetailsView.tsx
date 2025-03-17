@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trip, Participant, SupportedCurrency } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -26,12 +26,13 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { updateTrip, addParticipant, removeParticipant } from "@/services/tripService";
 
 interface TripDetailsViewProps {
   trip: Trip;
@@ -48,6 +49,9 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
   const [currency, setCurrency] = useState<SupportedCurrency>(trip.currency as SupportedCurrency || "USD");
   const [showAddParticipantDialog, setShowAddParticipantDialog] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>(trip.participants);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isProfileChanged, setIsProfileChanged] = useState(false);
+  const [isParticipantsChanged, setIsParticipantsChanged] = useState(false);
   const { toast } = useToast();
 
   // Form state for new participant
@@ -57,26 +61,121 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
     phone: ''
   });
 
+  // Update local state when trip prop changes
+  useEffect(() => {
+    setTripName(trip.name);
+    setStartDate(new Date(trip.startDate));
+    setEndDate(new Date(trip.endDate));
+    setCurrency(trip.currency as SupportedCurrency || "USD");
+    setParticipants(trip.participants);
+    setIsProfileChanged(false);
+    setIsParticipantsChanged(false);
+  }, [trip]);
+
+  // Track changes to profile fields
+  useEffect(() => {
+    const isChanged = 
+      tripName !== trip.name ||
+      startDate?.toISOString().split('T')[0] !== new Date(trip.startDate).toISOString().split('T')[0] ||
+      endDate?.toISOString().split('T')[0] !== new Date(trip.endDate).toISOString().split('T')[0] ||
+      currency !== trip.currency;
+    
+    setIsProfileChanged(isChanged);
+  }, [tripName, startDate, endDate, currency, trip]);
+
+  // Track changes to participants
+  useEffect(() => {
+    // Simple check by comparing lengths
+    const isChanged = participants.length !== trip.participants.length;
+    setIsParticipantsChanged(isChanged);
+  }, [participants, trip.participants]);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setTripImage(file);
       setTripImagePreview(URL.createObjectURL(file));
+      setIsProfileChanged(true);
     }
   };
 
-  const handleSave = () => {
-    // In a real app, this would call an API to update the trip
-    // For now, we'll just simulate the update
-    toast({
-      title: "Trip details updated",
-      description: "Your changes have been saved successfully",
-    });
-    setEditing(false);
-    onUpdate();
+  const handleSaveProfile = async () => {
+    if (!isProfileChanged) return;
+    
+    try {
+      setIsSaving(true);
+      
+      if (!startDate || !endDate) {
+        toast({
+          title: "Invalid dates",
+          description: "Please select valid start and end dates",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Prepare updated trip data
+      const updatedTripData = {
+        name: tripName,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        currency
+      };
+      
+      // Send update to API
+      await updateTrip(trip.id, updatedTripData);
+      
+      toast({
+        title: "Trip profile updated",
+        description: "Your changes have been saved successfully"
+      });
+      
+      setIsProfileChanged(false);
+      setEditing(false);
+      
+      // Refresh trip data
+      onUpdate();
+    } catch (error) {
+      console.error("Error updating trip:", error);
+      toast({
+        title: "Update failed",
+        description: "There was a problem updating the trip profile",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleAddParticipant = () => {
+  const handleSaveParticipants = async () => {
+    if (!isParticipantsChanged) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // In a real app, you'd handle the participant changes in bulk
+      // For now, we'll just notify that the changes would be saved
+      
+      toast({
+        title: "Participants updated",
+        description: "Participant changes have been saved"
+      });
+      
+      setIsParticipantsChanged(false);
+      onUpdate();
+    } catch (error) {
+      console.error("Error updating participants:", error);
+      toast({
+        title: "Update failed",
+        description: "There was a problem updating participants",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddParticipant = async () => {
     // Validate input
     if (!newParticipant.name.trim()) {
       toast({
@@ -87,46 +186,74 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
       return;
     }
 
-    // Create new participant object
-    const participant: Participant = {
-      id: `p${Date.now()}`, // Generate a simple ID
-      name: newParticipant.name,
-      email: newParticipant.email,
-      phone: newParticipant.phone,
-      balance: 0
-    };
-
-    // In a real application, you would make an API call here
-    // Update local state
-    setParticipants([...participants, participant]);
-    
-    // Reset form and close dialog
-    setNewParticipant({ name: '', email: '', phone: '' });
-    setShowAddParticipantDialog(false);
-    
-    toast({
-      title: "Participant Added",
-      description: `${participant.name} has been added to the trip.`
-    });
-    
-    onUpdate();
+    try {
+      setIsSaving(true);
+      
+      // Call API to add participant
+      await addParticipant(trip.id, {
+        id: `p${Date.now()}`, // This ID will be replaced by the server
+        name: newParticipant.name,
+        email: newParticipant.email || "",
+        phone: newParticipant.phone || "",
+      });
+      
+      // Reset form and close dialog
+      setNewParticipant({ name: '', email: '', phone: '' });
+      setShowAddParticipantDialog(false);
+      
+      toast({
+        title: "Participant Added",
+        description: `${newParticipant.name} has been added to the trip.`
+      });
+      
+      // Refresh trip data
+      onUpdate();
+      setIsParticipantsChanged(false);
+    } catch (error) {
+      console.error("Error adding participant:", error);
+      toast({
+        title: "Failed to add participant",
+        description: "There was a problem adding the participant",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleRemoveParticipant = (id: string) => {
-    // In a real app, this would call an API to remove the participant
-    const updatedParticipants = participants.filter(p => p.id !== id);
-    setParticipants(updatedParticipants);
-    
-    toast({
-      title: "Participant Removed",
-      description: "Participant has been removed from the trip"
-    });
-    
-    onUpdate();
+  const handleRemoveParticipant = async (id: string) => {
+    try {
+      setIsSaving(true);
+      
+      // Call API to remove participant
+      await removeParticipant(trip.id, id);
+      
+      toast({
+        title: "Participant Removed",
+        description: "Participant has been removed from the trip"
+      });
+      
+      // Update local state
+      setParticipants(participants.filter(p => p.id !== id));
+      setIsParticipantsChanged(false);
+      
+      // Refresh trip data
+      onUpdate();
+    } catch (error) {
+      console.error("Error removing participant:", error);
+      toast({
+        title: "Failed to remove participant",
+        description: "There was a problem removing the participant",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleLeaveTrip = () => {
-    // Simulate the current user leaving the trip
+  const handleLeaveTrip = async () => {
+    // In a real app, this would call an API with the current user's ID
+    // For now, we'll just show a toast message
     toast({
       title: "Left Trip",
       description: "You have successfully left this trip"
@@ -152,10 +279,15 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleSave}>
-                    <Save className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    setEditing(false);
+                    // Reset to original values
+                    setTripName(trip.name);
+                    setStartDate(new Date(trip.startDate));
+                    setEndDate(new Date(trip.endDate));
+                    setCurrency(trip.currency as SupportedCurrency || "USD");
+                    setIsProfileChanged(false);
+                  }}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -192,7 +324,10 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
             {editing ? (
               <Input 
                 value={tripName} 
-                onChange={(e) => setTripName(e.target.value)} 
+                onChange={(e) => {
+                  setTripName(e.target.value);
+                  setIsProfileChanged(true);
+                }} 
                 className="text-center font-bold text-xl"
               />
             ) : (
@@ -214,7 +349,10 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
                       <CalendarComponent
                         mode="single"
                         selected={startDate}
-                        onSelect={setStartDate}
+                        onSelect={(date) => {
+                          setStartDate(date);
+                          setIsProfileChanged(true);
+                        }}
                         initialFocus
                         className={cn("p-3 pointer-events-auto")}
                       />
@@ -239,7 +377,10 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
                       <CalendarComponent
                         mode="single"
                         selected={endDate}
-                        onSelect={setEndDate}
+                        onSelect={(date) => {
+                          setEndDate(date);
+                          setIsProfileChanged(true);
+                        }}
                         initialFocus
                         className={cn("p-3 pointer-events-auto")}
                       />
@@ -258,7 +399,13 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Currency:</span>
                 {editing ? (
-                  <Select value={currency} onValueChange={(value) => setCurrency(value as SupportedCurrency)}>
+                  <Select 
+                    value={currency} 
+                    onValueChange={(value) => {
+                      setCurrency(value as SupportedCurrency);
+                      setIsProfileChanged(true);
+                    }}
+                  >
                     <SelectTrigger className="w-28">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
@@ -285,6 +432,17 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
                 <span>{trip.expenses.length}</span>
               </div>
             </div>
+
+            {editing && isProfileChanged && (
+              <Button 
+                className="w-full" 
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -318,7 +476,12 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
                   <TableCell>{participant.email || "—"}</TableCell>
                   <TableCell>{participant.phone || "—"}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleRemoveParticipant(participant.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRemoveParticipant(participant.id)}
+                      disabled={isSaving}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
@@ -326,6 +489,18 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
               ))}
             </TableBody>
           </Table>
+
+          {isParticipantsChanged && (
+            <div className="mt-4 flex justify-end">
+              <Button 
+                onClick={handleSaveParticipants}
+                disabled={isSaving}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -373,8 +548,11 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
             <Button variant="outline" onClick={() => setShowAddParticipantDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddParticipant}>
-              Add Participant
+            <Button 
+              onClick={handleAddParticipant}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Adding...' : 'Add Participant'}
             </Button>
           </DialogFooter>
         </DialogContent>

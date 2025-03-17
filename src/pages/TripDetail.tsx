@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +28,6 @@ import { TripDetailsView } from "@/components/TripDetailsView";
 import { TripGallery } from "@/components/TripGallery";
 import { TripBills } from "@/components/TripBills";
 import { TripChat } from "@/components/TripChat";
-import { downloadTripReport } from "@/utils/expenseCalculator";
 
 const TripDetail = () => {
   const { id } = useParams<{ id: string }>();

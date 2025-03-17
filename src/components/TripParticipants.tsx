@@ -2,16 +2,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trip } from "@/types";
 import { formatCurrency } from "@/utils/expenseCalculator";
+import { useEffect, useState } from "react";
 
 interface TripParticipantsProps {
   trip: Trip;
 }
 
 export function TripParticipants({ trip }: TripParticipantsProps) {
-  // Sort participants by balance (desc)
-  const sortedParticipants = [...trip.participants].sort(
-    (a, b) => b.balance - a.balance
-  );
+  const [sortedParticipants, setSortedParticipants] = useState([...trip.participants]
+    .sort((a, b) => b.balance - a.balance));
+  
+  // Update when trip changes
+  useEffect(() => {
+    setSortedParticipants([...trip.participants]
+      .sort((a, b) => b.balance - a.balance));
+  }, [trip, trip.participants]);
 
   return (
     <Card>

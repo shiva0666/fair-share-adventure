@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Group, Participant, SupportedCurrency } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -24,7 +24,7 @@ import {
   LogOut
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface GroupDetailsViewProps {
@@ -40,6 +40,9 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
   const [currency, setCurrency] = useState<SupportedCurrency>(group.currency as SupportedCurrency || "USD");
   const [showAddParticipantDialog, setShowAddParticipantDialog] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>(group.participants);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isProfileChanged, setIsProfileChanged] = useState(false);
+  const [isParticipantsChanged, setIsParticipantsChanged] = useState(false);
   const { toast } = useToast();
 
   // Form state for new participant
@@ -49,22 +52,69 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
     phone: ''
   });
 
+  // Update local state when group prop changes
+  useEffect(() => {
+    setGroupName(group.name);
+    setCurrency(group.currency as SupportedCurrency || "USD");
+    setParticipants(group.participants);
+    setIsProfileChanged(false);
+    setIsParticipantsChanged(false);
+  }, [group]);
+
+  // Track changes to profile fields
+  useEffect(() => {
+    const isChanged = 
+      groupName !== group.name ||
+      currency !== group.currency;
+    
+    setIsProfileChanged(isChanged);
+  }, [groupName, currency, group]);
+
+  // Track changes to participants
+  useEffect(() => {
+    // Simple check by comparing lengths
+    const isChanged = participants.length !== group.participants.length;
+    setIsParticipantsChanged(isChanged);
+  }, [participants, group.participants]);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setGroupImage(file);
       setGroupImagePreview(URL.createObjectURL(file));
+      setIsProfileChanged(true);
     }
   };
 
-  const handleSave = () => {
+  const handleSaveProfile = () => {
     // In a real app, this would call an API to update the group
-    toast({
-      title: "Group details updated",
-      description: "Your changes have been saved successfully",
-    });
-    setEditing(false);
-    onUpdate();
+    setIsSaving(true);
+    
+    setTimeout(() => {
+      toast({
+        title: "Group details updated",
+        description: "Your changes have been saved successfully",
+      });
+      setEditing(false);
+      setIsSaving(false);
+      setIsProfileChanged(false);
+      onUpdate();
+    }, 800);
+  };
+
+  const handleSaveParticipants = () => {
+    // In a real app, this would call an API to update participants
+    setIsSaving(true);
+    
+    setTimeout(() => {
+      toast({
+        title: "Participants updated",
+        description: "Your changes have been saved successfully",
+      });
+      setIsSaving(false);
+      setIsParticipantsChanged(false);
+      onUpdate();
+    }, 800);
   };
 
   const handleAddParticipant = () => {
@@ -88,32 +138,42 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
     };
 
     // In a real application, you would make an API call here
-    // Update local state
-    setParticipants([...participants, participant]);
+    setIsSaving(true);
     
-    // Reset form and close dialog
-    setNewParticipant({ name: '', email: '', phone: '' });
-    setShowAddParticipantDialog(false);
-    
-    toast({
-      title: "Participant Added",
-      description: `${participant.name} has been added to the group.`
-    });
-    
-    onUpdate();
+    setTimeout(() => {
+      // Update local state
+      setParticipants([...participants, participant]);
+      
+      // Reset form and close dialog
+      setNewParticipant({ name: '', email: '', phone: '' });
+      setShowAddParticipantDialog(false);
+      
+      toast({
+        title: "Participant Added",
+        description: `${participant.name} has been added to the group.`
+      });
+      
+      setIsSaving(false);
+      onUpdate();
+    }, 800);
   };
 
   const handleRemoveParticipant = (id: string) => {
     // In a real app, this would call an API to remove the participant
-    const updatedParticipants = participants.filter(p => p.id !== id);
-    setParticipants(updatedParticipants);
+    setIsSaving(true);
     
-    toast({
-      title: "Participant Removed",
-      description: "Participant has been removed from the group"
-    });
-    
-    onUpdate();
+    setTimeout(() => {
+      const updatedParticipants = participants.filter(p => p.id !== id);
+      setParticipants(updatedParticipants);
+      
+      toast({
+        title: "Participant Removed",
+        description: "Participant has been removed from the group"
+      });
+      
+      setIsSaving(false);
+      onUpdate();
+    }, 800);
   };
 
   const handleLeaveGroup = () => {
@@ -143,10 +203,13 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleSave}>
-                    <Save className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    // Reset form state and exit editing mode
+                    setGroupName(group.name);
+                    setCurrency(group.currency as SupportedCurrency || "USD");
+                    setEditing(false);
+                    setIsProfileChanged(false);
+                  }}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -183,7 +246,10 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
             {editing ? (
               <Input 
                 value={groupName} 
-                onChange={(e) => setGroupName(e.target.value)} 
+                onChange={(e) => {
+                  setGroupName(e.target.value);
+                  setIsProfileChanged(true);
+                }} 
                 className="text-center font-bold text-xl"
               />
             ) : (
@@ -198,7 +264,13 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Currency:</span>
                 {editing ? (
-                  <Select value={currency} onValueChange={(value) => setCurrency(value as SupportedCurrency)}>
+                  <Select 
+                    value={currency} 
+                    onValueChange={(value) => {
+                      setCurrency(value as SupportedCurrency);
+                      setIsProfileChanged(true);
+                    }}
+                  >
                     <SelectTrigger className="w-28">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
@@ -227,6 +299,17 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
                 <span>{new Date(group.createdAt).toLocaleDateString()}</span>
               </div>
             </div>
+            
+            {editing && isProfileChanged && (
+              <Button 
+                className="w-full mt-4" 
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -260,7 +343,12 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
                   <TableCell>{participant.email || "—"}</TableCell>
                   <TableCell>{participant.phone || "—"}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleRemoveParticipant(participant.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRemoveParticipant(participant.id)}
+                      disabled={isSaving}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
@@ -268,6 +356,18 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
               ))}
             </TableBody>
           </Table>
+          
+          {isParticipantsChanged && (
+            <div className="mt-4 flex justify-end">
+              <Button 
+                onClick={handleSaveParticipants}
+                disabled={isSaving}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -315,8 +415,11 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
             <Button variant="outline" onClick={() => setShowAddParticipantDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddParticipant}>
-              Add Participant
+            <Button 
+              onClick={handleAddParticipant}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Adding...' : 'Add Participant'}
             </Button>
           </DialogFooter>
         </DialogContent>

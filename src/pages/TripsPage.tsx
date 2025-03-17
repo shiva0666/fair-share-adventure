@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { TripsList } from "@/components/TripsList";
@@ -103,7 +104,7 @@ const TripsPage = () => {
       </div>
 
       {showAddTripDialog && (
-        <CreateTripDialog 
+        <CreateTripDialog
           open={showAddTripDialog}
           onClose={() => setShowAddTripDialog(false)}
           onTripsCreated={handleTripCreated}

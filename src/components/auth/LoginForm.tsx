@@ -68,7 +68,7 @@ const LoginForm = () => {
         <Input
           id="email"
           type="email"
-          placeholder="name@example.com"
+          placeholder=""
           {...register("email")}
         />
         {errors.email && (
@@ -79,7 +79,7 @@ const LoginForm = () => {
         <Label htmlFor="password">Password</Label>
         <PasswordInput
           id="password"
-          placeholder="••••••••"
+          placeholder=""
           {...register("password")}
         />
         {errors.password && (

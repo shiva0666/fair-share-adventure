@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -109,21 +108,19 @@ const TripDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <ExpensesView trip={trip} onRefresh={() => refetch()} />
-                <div className="space-y-4">
-                  <Button 
-                    className="w-full"
-                    onClick={handleDownloadReport}
-                    variant="outline"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Report
-                  </Button>
-                  <TripChat trip={trip} />
-                </div>
+                <Button 
+                  className="w-full"
+                  onClick={handleDownloadReport}
+                  variant="outline"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Report
+                </Button>
               </div>
               <div className="space-y-6">
                 <TripSummary trip={trip} />
                 <TripParticipants trip={trip} />
+                <TripChat trip={trip} />
               </div>
             </div>
           </TabsContent>

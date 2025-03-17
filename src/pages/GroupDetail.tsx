@@ -27,6 +27,7 @@ import { Group } from "@/types";
 import { GroupDetailsView } from "@/components/GroupDetailsView";
 import { GroupGallery } from "@/components/GroupGallery";
 import { GroupBills } from "@/components/GroupBills";
+import { TripChat } from "@/components/TripChat";
 
 // Create a type that mimics the Trip structure but with Group properties
 interface GroupAsTripType {
@@ -89,27 +90,33 @@ const GroupDetail = () => {
           <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="expenses">
               <Receipt className="mr-2 h-4 w-4" />
-              Expenses
+              <span className="hidden sm:inline">Expenses</span>
+              <span className="sm:hidden">Exp</span>
             </TabsTrigger>
             <TabsTrigger value="analytics">
               <FileText className="mr-2 h-4 w-4" />
-              Analytics
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Anly</span>
             </TabsTrigger>
             <TabsTrigger value="settlements">
               <Receipt className="mr-2 h-4 w-4" />
-              Settlements
+              <span className="hidden sm:inline">Settlements</span>
+              <span className="sm:hidden">Sett</span>
             </TabsTrigger>
             <TabsTrigger value="details">
               <Users className="mr-2 h-4 w-4" />
-              Details
+              <span className="hidden sm:inline">Details</span>
+              <span className="sm:hidden">Det</span>
             </TabsTrigger>
             <TabsTrigger value="gallery">
               <Image className="mr-2 h-4 w-4" />
-              Gallery
+              <span className="hidden sm:inline">Gallery</span>
+              <span className="sm:hidden">Gall</span>
             </TabsTrigger>
             <TabsTrigger value="bills">
               <FileText className="mr-2 h-4 w-4" />
-              Bills
+              <span className="hidden sm:inline">Bills</span>
+              <span className="sm:hidden">Bill</span>
             </TabsTrigger>
           </TabsList>
           
@@ -117,10 +124,6 @@ const GroupDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <ExpensesView trip={groupAsTrip} onRefresh={() => refetch()} />
-              </div>
-              <div className="space-y-6">
-                <GroupSummary group={group} />
-                <TripParticipants trip={groupAsTrip} />
                 <Button 
                   className="w-full"
                   onClick={() => window.print()}
@@ -129,6 +132,11 @@ const GroupDetail = () => {
                   <Download className="mr-2 h-4 w-4" />
                   Download Report
                 </Button>
+              </div>
+              <div className="space-y-6">
+                <GroupSummary group={group} />
+                <TripParticipants trip={groupAsTrip} />
+                <TripChat trip={groupAsTrip} />
               </div>
             </div>
           </TabsContent>

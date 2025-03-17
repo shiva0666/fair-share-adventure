@@ -24,11 +24,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface CreateGroupDialogProps {
   children?: React.ReactNode;
+  open?: boolean;
+  onClose?: () => void;
+  onGroupCreated?: () => void;
 }
 
-export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
+export function CreateGroupDialog({ children, open, onClose, onGroupCreated }: CreateGroupDialogProps) {
   // Internal state for dialog
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(open || false);
   const [groupName, setGroupName] = useState("");
   const [description, setDescription] = useState("");
   const [currency, setCurrency] = useState<SupportedCurrency>("USD");
@@ -40,6 +43,21 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Handle external open state changes
+  React.useEffect(() => {
+    if (open !== undefined) {
+      setIsOpen(open);
+    }
+  }, [open]);
+
+  // Handle dialog close
+  const handleOpenChange = (newOpen: boolean) => {
+    setIsOpen(newOpen);
+    if (!newOpen && onClose) {
+      onClose();
+    }
+  };
 
   const handleAddParticipant = () => {
     setParticipants([...participants, { id: uuidv4(), name: "" }]);
@@ -105,7 +123,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
         name: groupName,
         description: description.trim() || undefined,
         participants: participantsWithBalance,
-        currency, // Add currency field
+        currency,
       });
       
       // Invalidate queries to refresh the UI
@@ -122,7 +140,12 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
       setDescription("");
       setCurrency("USD");
       setParticipants([{ id: uuidv4(), name: "" }]);
-      setOpen(false);
+      handleOpenChange(false);
+      
+      // Call the onGroupCreated callback if provided
+      if (onGroupCreated) {
+        onGroupCreated();
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -140,7 +163,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
   ];
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children || (
           <Button>
@@ -162,7 +185,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
               id="groupName"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="e.g., Roommates"
+              placeholder="Group Name"
             />
           </div>
           <div className="grid gap-2">
@@ -261,7 +284,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
           <Button 
             type="button" 
             variant="outline" 
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
           >
             Cancel

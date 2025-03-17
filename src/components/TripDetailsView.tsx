@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Trip } from "@/types";
+import { Trip, Participant, SupportedCurrency } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -14,9 +14,24 @@ import {
   TableHeader, 
   TableRow 
 } from "./ui/table";
-import { Image, Pencil, Save, X } from "lucide-react";
+import { 
+  Image, 
+  Pencil, 
+  Save, 
+  X, 
+  Calendar, 
+  Plus, 
+  Trash2, 
+  LogOut
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Calendar as CalendarComponent } from "./ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface TripDetailsViewProps {
   trip: Trip;
@@ -28,7 +43,19 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
   const [tripName, setTripName] = useState(trip.name);
   const [tripImage, setTripImage] = useState<File | null>(null);
   const [tripImagePreview, setTripImagePreview] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date(trip.startDate));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date(trip.endDate));
+  const [currency, setCurrency] = useState<SupportedCurrency>(trip.currency as SupportedCurrency || "USD");
+  const [showAddParticipantDialog, setShowAddParticipantDialog] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>(trip.participants);
   const { toast } = useToast();
+
+  // Form state for new participant
+  const [newParticipant, setNewParticipant] = useState<Omit<Participant, 'balance' | 'id'>>({
+    name: '',
+    email: '',
+    phone: ''
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -48,6 +75,69 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
     setEditing(false);
     onUpdate();
   };
+
+  const handleAddParticipant = () => {
+    // Validate input
+    if (!newParticipant.name.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Participant name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Create new participant object
+    const participant: Participant = {
+      id: `p${Date.now()}`, // Generate a simple ID
+      name: newParticipant.name,
+      email: newParticipant.email,
+      phone: newParticipant.phone,
+      balance: 0
+    };
+
+    // In a real application, you would make an API call here
+    // Update local state
+    setParticipants([...participants, participant]);
+    
+    // Reset form and close dialog
+    setNewParticipant({ name: '', email: '', phone: '' });
+    setShowAddParticipantDialog(false);
+    
+    toast({
+      title: "Participant Added",
+      description: `${participant.name} has been added to the trip.`
+    });
+    
+    onUpdate();
+  };
+
+  const handleRemoveParticipant = (id: string) => {
+    // In a real app, this would call an API to remove the participant
+    const updatedParticipants = participants.filter(p => p.id !== id);
+    setParticipants(updatedParticipants);
+    
+    toast({
+      title: "Participant Removed",
+      description: "Participant has been removed from the trip"
+    });
+    
+    onUpdate();
+  };
+
+  const handleLeaveTrip = () => {
+    // Simulate the current user leaving the trip
+    toast({
+      title: "Left Trip",
+      description: "You have successfully left this trip"
+    });
+    // In a real app, this would navigate away and update the backend
+  };
+
+  // List of supported currencies
+  const currencyOptions: SupportedCurrency[] = [
+    "USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "CNY", "SGD", "AED"
+  ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -109,27 +199,87 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
               <h2 className="font-bold text-xl text-center">{trip.name}</h2>
             )}
             
-            <div className="w-full space-y-1">
-              <div className="flex justify-between">
+            <div className="w-full space-y-3">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Start Date:</span>
-                <span>{formatDate(trip.startDate)}</span>
+                {editing ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="justify-start text-left font-normal">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <CalendarComponent
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <span>{formatDate(trip.startDate)}</span>
+                )}
               </div>
-              <div className="flex justify-between">
+              
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">End Date:</span>
-                <span>{formatDate(trip.endDate)}</span>
+                {editing ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="justify-start text-left font-normal">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <CalendarComponent
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <span>{formatDate(trip.endDate)}</span>
+                )}
               </div>
-              <div className="flex justify-between">
+              
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status:</span>
                 <span className="capitalize">{trip.status}</span>
               </div>
-              <div className="flex justify-between">
+              
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Currency:</span>
-                <span>{trip.currency || "₹"}</span>
+                {editing ? (
+                  <Select value={currency} onValueChange={(value) => setCurrency(value as SupportedCurrency)}>
+                    <SelectTrigger className="w-28">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyOptions.map((curr) => (
+                        <SelectItem key={curr} value={curr}>
+                          {curr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span>{trip.currency || "USD"}</span>
+                )}
               </div>
+              
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Participants:</span>
                 <span>{trip.participants.length}</span>
               </div>
+              
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Expenses:</span>
                 <span>{trip.expenses.length}</span>
@@ -140,8 +290,16 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
       </div>
       
       <Card className="md:col-span-2">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Participants Details</CardTitle>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowAddParticipantDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add Participant
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleLeaveTrip}>
+              <LogOut className="h-4 w-4 mr-1" /> Leave Trip
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -150,20 +308,77 @@ export function TripDetailsView({ trip, onUpdate }: TripDetailsViewProps) {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trip.participants.map((participant) => (
+              {participants.map((participant) => (
                 <TableRow key={participant.id}>
                   <TableCell className="font-medium">{participant.name}</TableCell>
                   <TableCell>{participant.email || "—"}</TableCell>
                   <TableCell>{participant.phone || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveParticipant(participant.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Add Participant Dialog */}
+      <Dialog open={showAddParticipantDialog} onOpenChange={setShowAddParticipantDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Participant</DialogTitle>
+            <DialogDescription>
+              Add a new participant to this trip.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input 
+                id="name" 
+                placeholder="" 
+                value={newParticipant.name}
+                onChange={(e) => setNewParticipant({...newParticipant, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email (Optional)</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="" 
+                value={newParticipant.email}
+                onChange={(e) => setNewParticipant({...newParticipant, email: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone (Optional)</Label>
+              <Input 
+                id="phone" 
+                type="tel" 
+                placeholder="" 
+                value={newParticipant.phone}
+                onChange={(e) => setNewParticipant({...newParticipant, phone: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddParticipantDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddParticipant}>
+              Add Participant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

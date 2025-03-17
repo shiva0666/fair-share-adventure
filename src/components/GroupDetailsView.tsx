@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Group } from "@/types";
+import { Group, Participant, SupportedCurrency } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -14,8 +14,18 @@ import {
   TableHeader, 
   TableRow 
 } from "./ui/table";
-import { Image, Pencil, Save, X } from "lucide-react";
+import { 
+  Image, 
+  Pencil, 
+  Save, 
+  X, 
+  Plus, 
+  Trash2, 
+  LogOut
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface GroupDetailsViewProps {
   group: Group;
@@ -27,7 +37,17 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
   const [groupName, setGroupName] = useState(group.name);
   const [groupImage, setGroupImage] = useState<File | null>(null);
   const [groupImagePreview, setGroupImagePreview] = useState<string | null>(null);
+  const [currency, setCurrency] = useState<SupportedCurrency>(group.currency as SupportedCurrency || "USD");
+  const [showAddParticipantDialog, setShowAddParticipantDialog] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>(group.participants);
   const { toast } = useToast();
+
+  // Form state for new participant
+  const [newParticipant, setNewParticipant] = useState<Omit<Participant, 'balance' | 'id'>>({
+    name: '',
+    email: '',
+    phone: ''
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -39,7 +59,6 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
 
   const handleSave = () => {
     // In a real app, this would call an API to update the group
-    // For now, we'll just simulate the update
     toast({
       title: "Group details updated",
       description: "Your changes have been saved successfully",
@@ -47,6 +66,69 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
     setEditing(false);
     onUpdate();
   };
+
+  const handleAddParticipant = () => {
+    // Validate input
+    if (!newParticipant.name.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Participant name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Create new participant object
+    const participant: Participant = {
+      id: `p${Date.now()}`, // Generate a simple ID
+      name: newParticipant.name,
+      email: newParticipant.email,
+      phone: newParticipant.phone,
+      balance: 0
+    };
+
+    // In a real application, you would make an API call here
+    // Update local state
+    setParticipants([...participants, participant]);
+    
+    // Reset form and close dialog
+    setNewParticipant({ name: '', email: '', phone: '' });
+    setShowAddParticipantDialog(false);
+    
+    toast({
+      title: "Participant Added",
+      description: `${participant.name} has been added to the group.`
+    });
+    
+    onUpdate();
+  };
+
+  const handleRemoveParticipant = (id: string) => {
+    // In a real app, this would call an API to remove the participant
+    const updatedParticipants = participants.filter(p => p.id !== id);
+    setParticipants(updatedParticipants);
+    
+    toast({
+      title: "Participant Removed",
+      description: "Participant has been removed from the group"
+    });
+    
+    onUpdate();
+  };
+
+  const handleLeaveGroup = () => {
+    // Simulate the current user leaving the group
+    toast({
+      title: "Left Group",
+      description: "You have successfully left this group"
+    });
+    // In a real app, this would navigate away and update the backend
+  };
+
+  // List of supported currencies
+  const currencyOptions: SupportedCurrency[] = [
+    "USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "CNY", "SGD", "AED"
+  ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -109,13 +191,28 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
             )}
             
             <div className="w-full space-y-1">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status:</span>
                 <span className="capitalize">{group.status}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Currency:</span>
-                <span>{group.currency || "₹"}</span>
+                {editing ? (
+                  <Select value={currency} onValueChange={(value) => setCurrency(value as SupportedCurrency)}>
+                    <SelectTrigger className="w-28">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyOptions.map((curr) => (
+                        <SelectItem key={curr} value={curr}>
+                          {curr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span>{group.currency || "USD"}</span>
+                )}
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Participants:</span>
@@ -135,8 +232,16 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
       </div>
       
       <Card className="md:col-span-2">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Participants Details</CardTitle>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowAddParticipantDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add Participant
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleLeaveGroup}>
+              <LogOut className="h-4 w-4 mr-1" /> Leave Group
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -145,20 +250,77 @@ export function GroupDetailsView({ group, onUpdate }: GroupDetailsViewProps) {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {group.participants.map((participant) => (
+              {participants.map((participant) => (
                 <TableRow key={participant.id}>
                   <TableCell className="font-medium">{participant.name}</TableCell>
                   <TableCell>{participant.email || "—"}</TableCell>
                   <TableCell>{participant.phone || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveParticipant(participant.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Add Participant Dialog */}
+      <Dialog open={showAddParticipantDialog} onOpenChange={setShowAddParticipantDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Participant</DialogTitle>
+            <DialogDescription>
+              Add a new participant to this group.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input 
+                id="name" 
+                placeholder="" 
+                value={newParticipant.name}
+                onChange={(e) => setNewParticipant({...newParticipant, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email (Optional)</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="" 
+                value={newParticipant.email}
+                onChange={(e) => setNewParticipant({...newParticipant, email: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone (Optional)</Label>
+              <Input 
+                id="phone" 
+                type="tel" 
+                placeholder="" 
+                value={newParticipant.phone}
+                onChange={(e) => setNewParticipant({...newParticipant, phone: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddParticipantDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddParticipant}>
+              Add Participant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

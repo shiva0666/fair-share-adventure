@@ -21,7 +21,6 @@ import {
   FileText, 
   Image, 
   Receipt, 
-  Download,
   Users
 } from "lucide-react";
 import { TripDetailsView } from "@/components/TripDetailsView";
@@ -48,10 +47,6 @@ const TripDetail = () => {
   if (error || !trip) {
     return <ErrorState error={error instanceof Error ? error.message : 'Unknown error'} />;
   }
-  
-  const handleDownloadReport = () => {
-    downloadTripReport(trip);
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,14 +103,6 @@ const TripDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <ExpensesView trip={trip} onRefresh={() => refetch()} />
-                <Button 
-                  className="w-full"
-                  onClick={handleDownloadReport}
-                  variant="outline"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Report
-                </Button>
               </div>
               <div className="space-y-6">
                 <TripSummary trip={trip} />

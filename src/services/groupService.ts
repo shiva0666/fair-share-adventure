@@ -80,68 +80,76 @@ export const createGroup = async (groupData: Omit<Group, 'id' | 'expenses' | 'cr
 
 // Add expense to a group
 export const addExpense = async (groupId: string, expense: Omit<Expense, 'id'>): Promise<Group> => {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const groups = getStoredGroups();
-      const groupIndex = groups.findIndex(group => group.id === groupId);
-      
-      if (groupIndex === -1) {
-        throw new Error('Group not found');
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        const newExpense: Expense = {
+          ...expense,
+          id: uuidv4(),
+        };
+        
+        const updatedGroup = {
+          ...groups[groupIndex],
+          expenses: [...groups[groupIndex].expenses, newExpense],
+        };
+        
+        // Recalculate balances
+        const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
+        
+        groups[groupIndex] = groupWithBalances;
+        saveGroups(groups);
+        
+        resolve(groupWithBalances);
+      } catch (error) {
+        reject(error);
       }
-      
-      const newExpense: Expense = {
-        ...expense,
-        id: uuidv4(),
-      };
-      
-      const updatedGroup = {
-        ...groups[groupIndex],
-        expenses: [...groups[groupIndex].expenses, newExpense],
-      };
-      
-      // Recalculate balances
-      const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
-      
-      groups[groupIndex] = groupWithBalances;
-      saveGroups(groups);
-      
-      resolve(groupWithBalances);
     }, 500);
   });
 };
 
 // Update expense in a group
 export const updateExpense = async (groupId: string, updatedExpense: Expense): Promise<Group> => {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const groups = getStoredGroups();
-      const groupIndex = groups.findIndex(group => group.id === groupId);
-      
-      if (groupIndex === -1) {
-        throw new Error('Group not found');
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        const expenseIndex = groups[groupIndex].expenses.findIndex(e => e.id === updatedExpense.id);
+        
+        if (expenseIndex === -1) {
+          throw new Error('Expense not found');
+        }
+        
+        const updatedExpenses = [...groups[groupIndex].expenses];
+        updatedExpenses[expenseIndex] = updatedExpense;
+        
+        const updatedGroup = {
+          ...groups[groupIndex],
+          expenses: updatedExpenses,
+        };
+        
+        // Recalculate balances
+        const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
+        
+        groups[groupIndex] = groupWithBalances;
+        saveGroups(groups);
+        
+        resolve(groupWithBalances);
+      } catch (error) {
+        reject(error);
       }
-      
-      const expenseIndex = groups[groupIndex].expenses.findIndex(e => e.id === updatedExpense.id);
-      
-      if (expenseIndex === -1) {
-        throw new Error('Expense not found');
-      }
-      
-      const updatedExpenses = [...groups[groupIndex].expenses];
-      updatedExpenses[expenseIndex] = updatedExpense;
-      
-      const updatedGroup = {
-        ...groups[groupIndex],
-        expenses: updatedExpenses,
-      };
-      
-      // Recalculate balances
-      const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
-      
-      groups[groupIndex] = groupWithBalances;
-      saveGroups(groups);
-      
-      resolve(groupWithBalances);
     }, 500);
   });
 };
@@ -151,22 +159,166 @@ export const updateGroupStatus = async (
   groupId: string,
   status: 'active' | 'completed'
 ): Promise<Group> => {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const groups = getStoredGroups();
-      const groupIndex = groups.findIndex(group => group.id === groupId);
-      
-      if (groupIndex === -1) {
-        throw new Error('Group not found');
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        groups[groupIndex] = {
+          ...groups[groupIndex],
+          status,
+        };
+        
+        saveGroups(groups);
+        resolve(groups[groupIndex]);
+      } catch (error) {
+        reject(error);
       }
-      
-      groups[groupIndex] = {
-        ...groups[groupIndex],
-        status,
-      };
-      
-      saveGroups(groups);
-      resolve(groups[groupIndex]);
+    }, 500);
+  });
+};
+
+// Update group details
+export const updateGroup = async (groupId: string, updates: Partial<Group>): Promise<Group> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        // Update group with new values
+        const updatedGroup = {
+          ...groups[groupIndex],
+          ...updates
+        };
+        
+        // Recalculate balances if needed
+        const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
+        
+        groups[groupIndex] = groupWithBalances;
+        saveGroups(groups);
+        
+        resolve(groupWithBalances);
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
+};
+
+// Add participant to a group
+export const addParticipant = async (groupId: string, participant: Omit<Participant, 'balance'>): Promise<Group> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        const newParticipant: Participant = {
+          ...participant,
+          balance: 0
+        };
+        
+        const updatedGroup = {
+          ...groups[groupIndex],
+          participants: [...groups[groupIndex].participants, newParticipant]
+        };
+        
+        // Recalculate balances
+        const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
+        
+        groups[groupIndex] = groupWithBalances;
+        saveGroups(groups);
+        
+        resolve(groupWithBalances);
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
+};
+
+// Remove participant from a group
+export const removeParticipant = async (groupId: string, participantId: string): Promise<Group> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        // Remove participant
+        const updatedGroup = {
+          ...groups[groupIndex],
+          participants: groups[groupIndex].participants.filter(p => p.id !== participantId),
+          // Also update expenses that involve this participant
+          expenses: groups[groupIndex].expenses.map(expense => {
+            // Remove the participant from splitBetween
+            const updatedSplitBetween = expense.splitBetween.filter(id => id !== participantId);
+            
+            // Handle paidBy field (could be string or string[])
+            let updatedPaidBy = expense.paidBy;
+            if (typeof expense.paidBy === 'string') {
+              // If this participant was the payer, set to first available participant or empty
+              if (expense.paidBy === participantId) {
+                const otherParticipants = groups[groupIndex].participants.filter(p => p.id !== participantId);
+                updatedPaidBy = otherParticipants.length > 0 ? otherParticipants[0].id : '';
+              }
+            } else if (Array.isArray(expense.paidBy)) {
+              // Remove this participant from the payers array
+              updatedPaidBy = expense.paidBy.filter(id => id !== participantId);
+            }
+            
+            // Update or remove payerAmounts for this participant
+            let updatedPayerAmounts = expense.payerAmounts;
+            if (updatedPayerAmounts && participantId in updatedPayerAmounts) {
+              const { [participantId]: removed, ...rest } = updatedPayerAmounts;
+              updatedPayerAmounts = rest;
+            }
+            
+            // Update or remove splitAmounts for this participant
+            let updatedSplitAmounts = expense.splitAmounts;
+            if (updatedSplitAmounts && participantId in updatedSplitAmounts) {
+              const { [participantId]: removed, ...rest } = updatedSplitAmounts;
+              updatedSplitAmounts = rest;
+            }
+            
+            return {
+              ...expense,
+              paidBy: updatedPaidBy,
+              splitBetween: updatedSplitBetween,
+              payerAmounts: updatedPayerAmounts,
+              splitAmounts: updatedSplitAmounts
+            };
+          })
+        };
+        
+        // Recalculate balances
+        const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
+        
+        groups[groupIndex] = groupWithBalances;
+        saveGroups(groups);
+        
+        resolve(groupWithBalances);
+      } catch (error) {
+        reject(error);
+      }
     }, 500);
   });
 };

@@ -20,7 +20,6 @@ import {
   FileText, 
   Image, 
   Receipt, 
-  Download,
   Users
 } from "lucide-react";
 import { Group } from "@/types";
@@ -124,14 +123,6 @@ const GroupDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <ExpensesView trip={groupAsTrip} onRefresh={() => refetch()} />
-                <Button 
-                  className="w-full"
-                  onClick={() => window.print()}
-                  variant="outline"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Report
-                </Button>
               </div>
               <div className="space-y-6">
                 <GroupSummary group={group} />

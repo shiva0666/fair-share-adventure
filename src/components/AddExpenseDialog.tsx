@@ -62,12 +62,13 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   const [autoDistributeRemaining, setAutoDistributeRemaining] = useState(true);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [allowManualPayerAmounts, setAllowManualPayerAmounts] = useState(false);
+  // Always start with manual payer amounts enabled
+  const [allowManualPayerAmounts, setAllowManualPayerAmounts] = useState(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Initialize payer amounts when amount changes, but only if manual mode is off
+  // Only initialize amounts when NOT in manual mode
   useEffect(() => {
     if (allowManualPayerAmounts) return;
     
@@ -165,22 +166,10 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       const newPaidBy = [...paidBy, participantId];
       setPaidBy(newPaidBy);
       
-      // Distribute amount among payers if not in manual mode
-      if (amount && !allowManualPayerAmounts) {
-        const amountPerPayer = (parseFloat(amount) / newPaidBy.length).toFixed(2);
-        const updatedPayerAmounts = { ...payerAmounts };
-        
-        newPaidBy.forEach(id => {
-          updatedPayerAmounts[id] = amountPerPayer;
-        });
-        
-        setPayerAmounts(updatedPayerAmounts);
-      } else if (allowManualPayerAmounts) {
-        // In manual mode, just enable the field but don't set a value
-        const updatedPayerAmounts = { ...payerAmounts };
-        updatedPayerAmounts[participantId] = "";
-        setPayerAmounts(updatedPayerAmounts);
-      }
+      // In manual mode, just enable the field but don't set a value automatically
+      const updatedPayerAmounts = { ...payerAmounts };
+      updatedPayerAmounts[participantId] = "";
+      setPayerAmounts(updatedPayerAmounts);
     } else {
       // Don't allow removing the last payer
       if (paidBy.length > 1) {
@@ -190,15 +179,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
         // Remove this payer's amount
         const updatedPayerAmounts = { ...payerAmounts };
         updatedPayerAmounts[participantId] = "";
-        
-        // Redistribute among remaining payers if there's an amount and not in manual mode
-        if (amount && newPaidBy.length > 0 && !allowManualPayerAmounts) {
-          const amountPerPayer = (parseFloat(amount) / newPaidBy.length).toFixed(2);
-          newPaidBy.forEach(id => {
-            updatedPayerAmounts[id] = amountPerPayer;
-          });
-        }
-        
         setPayerAmounts(updatedPayerAmounts);
       } else {
         toast({
@@ -221,11 +201,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   };
 
   const updatePayerAmount = (participantId: string, value: string) => {
-    // If user starts editing manually, switch to manual mode
-    if (!allowManualPayerAmounts) {
-      setAllowManualPayerAmounts(true);
-    }
-    
     setPayerAmounts(prev => ({
       ...prev,
       [participantId]: value
@@ -418,7 +393,7 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       setUseCustomSplit(false);
       setSplitAmounts(trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {}));
       setNotes("");
-      setAllowManualPayerAmounts(false);
+      setAllowManualPayerAmounts(true);
       setOpen(false);
     } catch (error) {
       console.error("Error adding expense:", error);

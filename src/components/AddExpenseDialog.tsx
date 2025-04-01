@@ -1,837 +1,558 @@
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Expense, ExpenseCategory, Participant, Trip, ExpenseAttachment } from "@/types";
-import { Plus, Users, Split, DollarSign, Paperclip, X, Camera } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { addExpense } from "@/services/tripService";
-import { useQueryClient } from "@tanstack/react-query";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Expense, Participant, Trip, ExpenseAttachment } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
+import { Camera } from "lucide-react";
+import { CameraDialog } from "./CameraDialog";
+import { FileIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { formatCurrency } from "@/utils/expenseCalculator";
 
 interface AddExpenseDialogProps {
   trip: Trip;
-  onExpenseAdded?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onExpenseAdded: (expense: Expense) => void;
 }
 
-const expenseCategories: ExpenseCategory[] = [
-  "food",
-  "accommodation",
-  "transportation",
-  "activities",
-  "shopping",
-  "other",
-];
-
-export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [expenseName, setExpenseName] = useState("");
+export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, onOpenChange, onExpenseAdded }) => {
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState<ExpenseCategory>("food");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [paidBy, setPaidBy] = useState<string[]>([trip.participants[0]?.id || ""]);
-  const [payerAmounts, setPayerAmounts] = useState<Record<string, string>>(
-    trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {})
-  );
-  const [splitBetween, setSplitBetween] = useState<string[]>(
-    trip.participants.map((p) => p.id)
-  );
-  const [useCustomSplit, setUseCustomSplit] = useState(false);
-  const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>(
-    trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {})
-  );
-  const [autoDistributeRemaining, setAutoDistributeRemaining] = useState(true);
+  const [category, setCategory] = useState("Food");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [paidByIds, setPaidByIds] = useState<string[]>([trip.participants[0].id]);
+  const [splitBetween, setSplitBetween] = useState<string[]>(trip.participants.map(p => p.id));
+  const [splitMethod, setSplitMethod] = useState<"equal" | "manual">("equal");
+  const [splitAmounts, setSplitAmounts] = useState<{ [participantId: string]: number }>({});
   const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [allowManualPayerAmounts, setAllowManualPayerAmounts] = useState(true);
   const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>([]);
-  const [showCameraCapture, setShowCameraCapture] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
+  const [showCamera, setShowCamera] = useState(false);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const [isCameraSupported, setIsCameraSupported] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (allowManualPayerAmounts) return;
-    
-    if (paidBy.length === 1) {
-      const singlePayerId = paidBy[0];
-      setPayerAmounts(prev => ({
-        ...Object.keys(prev).reduce((acc, id) => ({ ...acc, [id]: "" }), {}),
-        [singlePayerId]: amount
-      }));
-    } else if (paidBy.length > 1 && amount) {
-      const amountPerPayer = (parseFloat(amount) / paidBy.length).toFixed(2);
-      const updatedPayerAmounts = { ...payerAmounts };
-      
-      Object.keys(updatedPayerAmounts).forEach(id => {
-        updatedPayerAmounts[id] = "";
-      });
-      
-      paidBy.forEach(id => {
-        updatedPayerAmounts[id] = amountPerPayer;
-      });
-      
-      setPayerAmounts(updatedPayerAmounts);
-    }
-  }, [amount, paidBy, allowManualPayerAmounts]);
+    // Check if the browser supports the MediaDevices API
+    setIsCameraSupported(!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+  }, []);
 
   useEffect(() => {
-    if (useCustomSplit && autoDistributeRemaining && splitBetween.length > 0) {
-      const totalAmount = parseFloat(amount || "0");
-      if (isNaN(totalAmount) || totalAmount <= 0) return;
-
-      let allocatedAmount = 0;
-      let allocatedParticipants = 0;
-      
-      splitBetween.forEach(id => {
-        const participantAmount = parseFloat(splitAmounts[id] || "0");
-        if (!isNaN(participantAmount) && participantAmount > 0) {
-          allocatedAmount += participantAmount;
-          allocatedParticipants++;
-        }
+    if (splitMethod === "equal") {
+      const equalAmount = parseFloat(amount) / splitBetween.length || 0;
+      const newSplitAmounts: { [participantId: string]: number } = {};
+      splitBetween.forEach(participantId => {
+        newSplitAmounts[participantId] = equalAmount;
       });
-
-      if (allocatedParticipants === splitBetween.length || splitBetween.length === 0) return;
-
-      const remainingAmount = totalAmount - allocatedAmount;
-      const remainingParticipants = splitBetween.length - allocatedParticipants;
-      
-      if (remainingAmount <= 0 || remainingParticipants <= 0) return;
-      
-      const amountPerRemaining = (remainingAmount / remainingParticipants).toFixed(2);
-      
-      const updatedSplitAmounts = { ...splitAmounts };
-      splitBetween.forEach(id => {
-        const currentAmount = parseFloat(updatedSplitAmounts[id] || "0");
-        if (isNaN(currentAmount) || currentAmount <= 0) {
-          updatedSplitAmounts[id] = amountPerRemaining;
-        }
-      });
-      
-      setSplitAmounts(updatedSplitAmounts);
+      setSplitAmounts(newSplitAmounts);
     }
-  }, [useCustomSplit, splitBetween, splitAmounts, amount, autoDistributeRemaining]);
+  }, [amount, splitBetween, splitMethod]);
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    if (amount && splitMethod === "equal") {
+      const equalAmount = parseFloat(amount) / splitBetween.length || 0;
+      const newSplitAmounts: { [participantId: string]: number } = {};
+      splitBetween.forEach(participantId => {
+        newSplitAmounts[participantId] = equalAmount;
+      });
+      setSplitAmounts(newSplitAmounts);
+    }
+  }, [amount, splitBetween, splitMethod]);
 
-    const initCamera = async () => {
-      if (showCameraCapture && videoRef.current) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
-          });
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        } catch (err) {
-          console.error("Camera access error:", err);
-          toast({
-            title: "Camera Error",
-            description: "Could not access your camera. Please check permissions.",
-            variant: "destructive"
-          });
-          setShowCameraCapture(false);
-        }
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(async file => {
+      const id = uuidv4();
+      const fileUrl = URL.createObjectURL(file);
+      let thumbnailUrl: string | undefined = undefined;
+
+      if (file.type.startsWith('image/')) {
+        thumbnailUrl = fileUrl;
       }
-    };
 
-    initCamera();
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [showCameraCapture, toast]);
-
-  const handleParticipantSelection = (participantId: string, checked: boolean) => {
-    if (checked) {
-      setSplitBetween([...splitBetween, participantId]);
-      
-      if (useCustomSplit) {
-        setSplitAmounts(prev => ({ ...prev, [participantId]: "" }));
-      }
-    } else {
-      setSplitBetween(splitBetween.filter((id) => id !== participantId));
-      
-      if (useCustomSplit) {
-        const newSplitAmounts = { ...splitAmounts };
-        delete newSplitAmounts[participantId];
-        setSplitAmounts(newSplitAmounts);
-      }
-    }
-  };
-
-  const handlePayerSelection = (participantId: string, checked: boolean) => {
-    if (checked) {
-      const newPaidBy = [...paidBy, participantId];
-      setPaidBy(newPaidBy);
-      
-      const updatedPayerAmounts = { ...payerAmounts };
-      updatedPayerAmounts[participantId] = "";
-      setPayerAmounts(updatedPayerAmounts);
-    } else {
-      if (paidBy.length > 1) {
-        const newPaidBy = paidBy.filter((id) => id !== participantId);
-        setPaidBy(newPaidBy);
-        
-        const updatedPayerAmounts = { ...payerAmounts };
-        updatedPayerAmounts[participantId] = "";
-        setPayerAmounts(updatedPayerAmounts);
-      } else {
-        toast({
-          title: "At least one payer required",
-          description: "You must have at least one person who paid",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const toggleCustomSplit = () => {
-    setUseCustomSplit(!useCustomSplit);
-    
-    if (useCustomSplit) {
-      const resetAmounts = trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {});
-      setSplitAmounts(resetAmounts);
-    }
-  };
-
-  const updatePayerAmount = (participantId: string, value: string) => {
-    setPayerAmounts(prev => ({
-      ...prev,
-      [participantId]: value
-    }));
-  };
-
-  const updateSplitAmount = (participantId: string, value: string) => {
-    setSplitAmounts(prev => ({
-      ...prev,
-      [participantId]: value
-    }));
-  };
-
-  const validateCustomSplitAmounts = () => {
-    if (!useCustomSplit) return true;
-    
-    const selectedParticipants = splitBetween.filter(id => {
-      const amount = parseFloat(splitAmounts[id] || "0");
-      return !isNaN(amount) && amount >= 0;
-    });
-    
-    if (selectedParticipants.length !== splitBetween.length) {
-      toast({
-        title: "Invalid custom split",
-        description: "Please enter a valid amount for each selected participant",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    const amountValue = parseFloat(amount);
-    const totalSplit = selectedParticipants.reduce(
-      (sum, id) => sum + parseFloat(splitAmounts[id] || "0"), 
-      0
-    );
-    
-    if (Math.abs(totalSplit - amountValue) > 0.01) {
-      toast({
-        title: "Split amounts don't match total",
-        description: `The sum of split amounts (${totalSplit.toFixed(2)}) must equal the total expense (${amountValue.toFixed(2)})`,
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    return true;
-  };
-
-  const validatePayerAmounts = () => {
-    const payersWithAmounts = paidBy.filter(id => {
-      const amount = parseFloat(payerAmounts[id] || "0");
-      return !isNaN(amount) && amount >= 0;
-    });
-    
-    if (payersWithAmounts.length !== paidBy.length) {
-      toast({
-        title: "Missing payer amounts",
-        description: "Please enter a valid amount for each payer",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    const amountValue = parseFloat(amount);
-    const totalPaid = paidBy.reduce(
-      (sum, id) => sum + parseFloat(payerAmounts[id] || "0"),
-      0
-    );
-    
-    if (Math.abs(totalPaid - amountValue) > 0.01) {
-      toast({
-        title: "Payer amounts don't match total",
-        description: `The sum of payer amounts (${totalPaid.toFixed(2)}) must equal the total expense (${amountValue.toFixed(2)})`,
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!expenseName.trim()) {
-      toast({
-        title: "Missing information",
-        description: "Please enter an expense name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const amountValue = parseFloat(amount);
-    if (isNaN(amountValue) || amountValue <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid positive amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (paidBy.length === 0) {
-      toast({
-        title: "Missing information",
-        description: "Please select who paid for this expense",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (splitBetween.length === 0) {
-      toast({
-        title: "Missing information",
-        description: "Please select at least one participant to split with",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!validatePayerAmounts()) {
-      return;
-    }
-
-    if (useCustomSplit && !validateCustomSplitAmounts()) {
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      
-      const formattedPayerAmounts = paidBy.reduce((acc, id) => ({
-        ...acc,
-        [id]: parseFloat(payerAmounts[id] || "0")
-      }), {});
-      
-      const formattedSplitAmounts = useCustomSplit
-        ? splitBetween.reduce((acc, id) => ({
-            ...acc,
-            [id]: parseFloat(splitAmounts[id] || "0")
-          }), {})
-        : undefined;
-      
-      const expenseData = {
-        name: expenseName,
-        amount: amountValue,
-        category,
-        date,
-        paidBy: paidBy.length === 1 ? paidBy[0] : paidBy,
-        payerAmounts: paidBy.length > 1 ? formattedPayerAmounts : undefined,
-        splitBetween,
-        splitAmounts: formattedSplitAmounts,
-        notes: notes.trim() || undefined,
-        attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
+      const newAttachment: ExpenseAttachment = {
+        id: id,
+        filename: file.name,
+        fileUrl: fileUrl,
+        fileType: file.type,
+        fileSize: file.size,
+        thumbnailUrl: thumbnailUrl,
+        createdAt: new Date().toISOString(),
+        uploadedAt: new Date().toISOString()
       };
-      
-      if ('startDate' in trip && 'endDate' in trip) {
-        await addExpense(trip.id, expenseData);
-      } else {
-        await import('@/services/groupService').then(module => {
-          return module.addExpense(trip.id, expenseData);
-        });
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['trip', trip.id] });
-      queryClient.invalidateQueries({ queryKey: ['group', trip.id] });
-      
-      if (onExpenseAdded) {
-        onExpenseAdded();
-      }
-      
-      toast({
-        title: "Success",
-        description: "Expense added successfully!",
+
+      setFileAttachments(prev => [...prev, newAttachment]);
+    });
+  };
+
+  const handleFileRemove = (indexToRemove: number) => {
+    setFileAttachments(prevAttachments => 
+      prevAttachments.filter((_, index) => index !== indexToRemove)
+    );
+  };
+
+  const handleSplitMethodChange = (method: "equal" | "manual") => {
+    setSplitMethod(method);
+    if (method === "equal") {
+      const equalAmount = parseFloat(amount) / splitBetween.length || 0;
+      const newSplitAmounts: { [participantId: string]: number } = {};
+      splitBetween.forEach(participantId => {
+        newSplitAmounts[participantId] = equalAmount;
       });
-      
-      setExpenseName("");
-      setAmount("");
-      setCategory("food");
-      setDate(new Date().toISOString().split("T")[0]);
-      setPaidBy([trip.participants[0]?.id || ""]);
-      setPayerAmounts(trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {}));
-      setSplitBetween(trip.participants.map((p) => p.id));
-      setUseCustomSplit(false);
-      setSplitAmounts(trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {}));
-      setNotes("");
-      setFileAttachments([]);
-      setAllowManualPayerAmounts(true);
-      setOpen(false);
-    } catch (error) {
-      console.error("Error adding expense:", error);
+      setSplitAmounts(newSplitAmounts);
+    }
+  };
+
+  const distributeRemaining = (participantId: string, currentAmount: number) => {
+    const amountValue = parseFloat(amount);
+    if (isNaN(amountValue)) {
       toast({
         title: "Error",
-        description: "Failed to add expense. Please try again.",
+        description: "Please enter a valid amount.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
-  };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newAttachments: ExpenseAttachment[] = Array.from(e.target.files).map(file => {
-        const id = uuidv4();
-        const fileUrl = URL.createObjectURL(file);
-        
-        return {
-          id,
-          filename: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          fileUrl,
-          thumbnailUrl: file.type.startsWith('image/') ? fileUrl : undefined,
-          uploadedAt: new Date().toISOString(),
-        };
+    const currentTotal = Object.values(splitAmounts).reduce((acc, val) => acc + val, 0);
+    const remainingAmount = amountValue - currentTotal;
+    const newAmount = currentAmount + remainingAmount;
+
+    if (newAmount < 0) {
+      toast({
+        title: "Error",
+        description: "Amount cannot be negative.",
+        variant: "destructive",
       });
-      
-      setFileAttachments(prev => [...prev, ...newAttachments]);
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      return;
+    }
+
+    setSplitAmounts(prev => ({
+      ...prev,
+      [participantId]: newAmount,
+    }));
+  };
+
+  const handleInputChange = (participantId: string, value: string) => {
+    const parsedValue = parseFloat(value);
+    if (isNaN(parsedValue) && value !== "") {
+      toast({
+        title: "Error",
+        description: "Please enter a valid number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (value === "") {
+      setSplitAmounts(prev => {
+        const { [participantId]: removed, ...rest } = prev;
+        return rest;
+      });
+    } else {
+      setSplitAmounts(prev => ({
+        ...prev,
+        [participantId]: parsedValue,
+      }));
+    }
+  };
+  
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!amount) {
+      toast({
+        title: "Error",
+        description: "Please enter the expense amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!date) {
+      toast({
+        title: "Error",
+        description: "Please select a date for the expense.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (splitMethod === "manual") {
+      const totalSplitAmount = Object.values(splitAmounts).reduce((sum, amount) => sum + amount, 0);
+      if (Math.abs(totalSplitAmount - parseFloat(amount)) > 0.01) {
+        toast({
+          title: "Error",
+          description: "Total split amount does not match the expense amount.",
+          variant: "destructive",
+        });
+        return;
       }
+    }
+
+    const formattedSplitAmounts: { [participantId: string]: number } = {};
+    for (const participantId of splitBetween) {
+      formattedSplitAmounts[participantId] = splitAmounts[participantId] || 0;
+    }
+
+    const newExpense: Omit<Expense, 'id'> = {
+      amount: parseFloat(amount),
+      category,
+      description,
+      date: date.toISOString(),
+      paidBy: paidByIds,
+      splitBetween: splitBetween,
+      splitMethod,
+      splitAmounts: formattedSplitAmounts,
+      notes: notes.trim() || undefined,
+      attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
+    };
+    
+    try {
+      const { createExpense } = await import('@/services/tripService');
+      const createdExpense = await createExpense(trip.id, newExpense);
+      
+      onExpenseAdded(createdExpense);
+      toast({
+        title: "Expense added",
+        description: "The expense has been successfully added",
+      });
+      onOpenChange(false);
+      
+      // Reset form fields
+      setAmount("");
+      setCategory("Food");
+      setDescription("");
+      setDate(new Date());
+      setPaidByIds([trip.participants[0].id]);
+      setSplitBetween(trip.participants.map(p => p.id));
+      setSplitMethod("equal");
+      setSplitAmounts({});
+      setNotes("");
+      setFileAttachments([]);
+      
+    } catch (error) {
+      console.error("Error creating expense:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create expense. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleRemoveAttachment = (id: string) => {
-    setFileAttachments(prev => prev.filter(attachment => attachment.id !== id));
+  const handleCameraClick = () => {
+    if (isCameraSupported) {
+      setShowCamera(true);
+    } else {
+      cameraRef.current?.click();
+    }
   };
 
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      // Set canvas dimensions to match video dimensions
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw the video frame to the canvas
-      const context = canvas.getContext('2d');
-      if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert canvas to blob and create a file-like object
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const id = uuidv4();
-            const filename = `receipt_photo_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
-            const fileUrl = URL.createObjectURL(blob);
-            
-            const newAttachment: ExpenseAttachment = {
-              id,
-              filename,
-              fileType: 'image/jpeg',
-              fileSize: blob.size,
-              fileUrl,
-              thumbnailUrl: fileUrl,
-              uploadedAt: new Date().toISOString(),
-            };
-            
-            setFileAttachments(prev => [...prev, newAttachment]);
-            setShowCameraCapture(false);
-            
-            // Stop camera stream
-            const stream = video.srcObject as MediaStream;
-            if (stream) {
-              stream.getTracks().forEach(track => track.stop());
-            }
-            
-            toast({
-              title: "Photo captured",
-              description: "Receipt photo has been added to attachments",
-            });
-          }
-        }, 'image/jpeg', 0.9);
-      }
-    }
+  const handleCapture = (imageDataURL: string) => {
+    const timestamp = new Date().toISOString();
+    const newAttachment: ExpenseAttachment = {
+      id: `camera-${timestamp}`,
+      filename: `Photo ${new Date().toLocaleString()}`,
+      fileUrl: imageDataURL,
+      fileType: 'image/jpeg',
+      fileSize: 0, // We don't know exact size for captured images
+      thumbnailUrl: imageDataURL,
+      createdAt: timestamp,
+      uploadedAt: timestamp
+    };
+    
+    setFileAttachments(prev => [...prev, newAttachment]);
+    setShowCamera(false);
+  };
+
+  const getPaidByName = (paidByIds: string[], participants: Participant[]) => {
+    const names = paidByIds.map(id => {
+      const participant = participants.find(p => p.id === id);
+      return participant ? participant.name : "Unknown";
+    });
+    return names.join(", ");
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full">
-          <Plus className="mr-2 h-4 w-4" /> Add Expense
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Add New Expense</DialogTitle>
+          <DialogTitle>Add Expense</DialogTitle>
           <DialogDescription>
-            Enter the expense details and how it should be split.
+            Add a new expense to track where your money is going.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[60vh] pr-4">
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="expenseName">Expense Name</Label>
+        <form onSubmit={handleFormSubmit} className="grid gap-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
               <Input
-                id="expenseName"
-                value={expenseName}
-                onChange={(e) => setExpenseName(e.target.value)}
-                placeholder="e.g., Dinner at Beach Shack"
+                id="amount"
+                placeholder="Expense amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="amount">Amount (₹)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="date">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={(value) => setCategory(value as ExpenseCategory)}>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger id="category">
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {expenseCategories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Food">Food</SelectItem>
+                  <SelectItem value="Transportation">Transportation</SelectItem>
+                  <SelectItem value="Accommodation">Accommodation</SelectItem>
+                  <SelectItem value="Activities">Activities</SelectItem>
+                  <SelectItem value="Shopping">Shopping</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <div className="flex justify-between items-center">
-                <Label>Paid By</Label>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Input
+              id="description"
+              placeholder="Expense description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAllowManualPayerAmounts(!allowManualPayerAmounts)}
-                  className="flex items-center gap-1 text-xs"
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
                 >
-                  <DollarSign className="h-3 w-3" />
-                  {allowManualPayerAmounts ? "Auto Distribute" : "Enter Amounts Manually"}
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
                 </Button>
-              </div>
-              <div className="flex items-center mb-2">
-                <Users className="h-4 w-4 mr-2" />
-                <span className="text-sm text-muted-foreground">
-                  Select who paid and enter individual amounts
-                </span>
-              </div>
-              <div className="space-y-2 border rounded-md p-3 max-h-[200px] overflow-y-auto">
-                {trip.participants.map((participant) => (
-                  <div key={`payer-${participant.id}`} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`payer-${participant.id}`}
-                      checked={paidBy.includes(participant.id)}
-                      onCheckedChange={(checked) =>
-                        handlePayerSelection(
-                          participant.id,
-                          checked as boolean
-                        )
-                      }
-                    />
-                    <Label
-                      htmlFor={`payer-${participant.id}`}
-                      className="text-sm font-normal cursor-pointer flex-1"
-                    >
-                      {participant.name}
-                    </Label>
-                    
-                    {paidBy.includes(participant.id) && (
-                      <div className="flex items-center">
-                        <span className="text-sm mr-1">₹</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="w-24 h-8"
-                          value={payerAmounts[participant.id]}
-                          onChange={(e) => updatePayerAmount(participant.id, e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <div className="flex justify-between items-center">
-                <Label>Split Between</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleCustomSplit}
-                  className="flex items-center gap-1"
-                >
-                  <Split className="h-4 w-4" />
-                  {useCustomSplit ? "Equal Split" : "Custom Split Amounts"}
-                </Button>
-              </div>
-              <div className="space-y-2 border rounded-md p-3 max-h-[200px] overflow-y-auto">
-                {useCustomSplit && (
-                  <div className="flex items-center mb-2 p-2 bg-muted/50 rounded-md">
-                    <Checkbox 
-                      id="auto-distribute"
-                      checked={autoDistributeRemaining}
-                      onCheckedChange={(checked) => setAutoDistributeRemaining(!!checked)}
-                      className="mr-2"
-                    />
-                    <Label 
-                      htmlFor="auto-distribute" 
-                      className="text-xs cursor-pointer"
-                    >
-                      Auto-distribute remaining amount
-                    </Label>
-                  </div>
-                )}
-                
-                {trip.participants.map((participant) => (
-                  <div key={`split-${participant.id}`} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`participant-${participant.id}`}
-                      checked={splitBetween.includes(participant.id)}
-                      onCheckedChange={(checked) =>
-                        handleParticipantSelection(
-                          participant.id,
-                          checked as boolean
-                        )
-                      }
-                    />
-                    <Label
-                      htmlFor={`participant-${participant.id}`}
-                      className="text-sm font-normal cursor-pointer flex-1"
-                    >
-                      {participant.name}
-                    </Label>
-                    
-                    {useCustomSplit && splitBetween.includes(participant.id) && (
-                      <div className="flex items-center">
-                        <span className="text-sm mr-1">₹</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="w-24 h-8"
-                          value={splitAmounts[participant.id]}
-                          onChange={(e) => updateSplitAmount(participant.id, e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Attachments</Label>
-              <div className="flex items-center mb-2">
-                <Paperclip className="h-4 w-4 mr-2" />
-                <span className="text-sm text-muted-foreground">
-                  Attach receipts or related documents
-                </span>
-              </div>
-              
-              {showCameraCapture && (
-                <div className="border rounded-lg p-2 mt-2 bg-muted/30">
-                  <div className="relative aspect-video overflow-hidden rounded-md">
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
-                      className="w-full h-full object-cover"
-                    />
-                    <canvas ref={canvasRef} className="hidden" />
-                  </div>
-                  
-                  <div className="flex justify-center mt-2">
-                    <Button 
-                      onClick={capturePhoto} 
-                      variant="default"
-                    >
-                      <Camera className="mr-2 h-4 w-4" />
-                      Capture Photo
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        setShowCameraCapture(false);
-                        if (videoRef.current) {
-                          const stream = videoRef.current.srcObject as MediaStream;
-                          if (stream) {
-                            stream.getTracks().forEach(track => track.stop());
-                          }
-                        }
-                      }} 
-                      variant="outline" 
-                      className="ml-2"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {fileAttachments.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  {fileAttachments.map(file => (
-                    <div 
-                      key={file.id} 
-                      className="flex items-center border rounded-md p-2 bg-muted/50"
-                    >
-                      <div className="flex-1 truncate text-xs">
-                        {file.filename}
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6" 
-                        onClick={() => handleRemoveAttachment(file.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Paperclip className="mr-2 h-4 w-4" />
-                  Attach Files
-                </Button>
-                
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => setShowCameraCapture(true)}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Take Photo
-                </Button>
-                
-                <Input 
-                  ref={fileInputRef}
-                  type="file" 
-                  className="hidden" 
-                  multiple 
-                  onChange={handleFileUpload}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(date) =>
+                    date > new Date()
+                  }
+                  initialFocus
                 />
-                
-                <Input 
-                  ref={cameraInputRef}
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment"
-                  className="hidden" 
-                  onChange={handleFileUpload}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label>Paid By</Label>
+            {trip.participants.map((participant) => (
+              <div key={participant.id} className="flex items-center space-x-2">
+                <Input
+                  type="checkbox"
+                  id={`paidBy-${participant.id}`}
+                  className="h-4 w-4"
+                  checked={paidByIds.includes(participant.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setPaidByIds([...paidByIds, participant.id]);
+                    } else {
+                      setPaidByIds(paidByIds.filter((id) => id !== participant.id));
+                    }
+                  }}
                 />
+                <Label htmlFor={`paidBy-${participant.id}`}>{participant.name}</Label>
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any additional notes here..."
-                rows={3}
-              />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Split Between</Label>
+            {trip.participants.map((participant) => (
+              <div key={participant.id} className="flex items-center space-x-2">
+                <Input
+                  type="checkbox"
+                  id={`splitBetween-${participant.id}`}
+                  className="h-4 w-4"
+                  checked={splitBetween.includes(participant.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSplitBetween([...splitBetween, participant.id]);
+                    } else {
+                      setSplitBetween(splitBetween.filter((id) => id !== participant.id));
+                    }
+                  }}
+                />
+                <Label htmlFor={`splitBetween-${participant.id}`}>{participant.name}</Label>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Split Method</Label>
+            <div className="flex space-x-4">
+              <Button
+                variant={splitMethod === "equal" ? "default" : "outline"}
+                onClick={() => handleSplitMethodChange("equal")}
+              >
+                Split Equally
+              </Button>
+              <Button
+                variant={splitMethod === "manual" ? "default" : "outline"}
+                onClick={() => handleSplitMethodChange("manual")}
+                disabled={splitBetween.length === 0}
+              >
+                Split Manually
+              </Button>
             </div>
           </div>
-        </ScrollArea>
-        <DialogFooter className="mt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Adding..." : "Add Expense"}
-          </Button>
-        </DialogFooter>
+          {splitMethod === "manual" && splitBetween.length > 0 && (
+            <div className="space-y-2">
+              <Label>Split Amounts</Label>
+              {trip.participants.map((participant) => {
+                if (!splitBetween.includes(participant.id)) return null;
+                return (
+                  <div key={participant.id} className="flex items-center space-x-2">
+                    <Label htmlFor={`amount-${participant.id}`}>{participant.name}</Label>
+                    <Input
+                      id={`amount-${participant.id}`}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={splitAmounts[participant.id]?.toString() || ""}
+                      onChange={(e) => handleInputChange(participant.id, e.target.value)}
+                      onBlur={(e) => {
+                        if (e.target.value === "") {
+                          setSplitAmounts(prev => {
+                            const { [participant.id]: removed, ...rest } = prev;
+                            return rest;
+                          });
+                        } else {
+                          distributeRemaining(participant.id, parseFloat(e.target.value || "0"));
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Input
+              id="notes"
+              placeholder="Additional notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Attachments</Label>
+            <div className="flex items-center space-x-4">
+              <Input
+                type="file"
+                id="attachment"
+                className="hidden"
+                multiple
+                onChange={handleFileSelect}
+                ref={cameraRef}
+              />
+              <Button variant="outline" onClick={handleCameraClick}>
+                {isCameraSupported ? (
+                  <>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Take Photo
+                  </>
+                ) : (
+                  'Add Attachment'
+                )}
+              </Button>
+              {fileAttachments.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {fileAttachments.length} file(s) attached
+                </span>
+              )}
+            </div>
+            {fileAttachments.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {fileAttachments.map((attachment, index) => (
+                  <Card key={index} className="overflow-hidden">
+                    <CardContent className="p-2">
+                      <div className="aspect-square w-full overflow-hidden rounded-md bg-muted flex items-center justify-center">
+                        {attachment.fileType.startsWith('image/') ? (
+                          <a 
+                            href={attachment.fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-full h-full"
+                          >
+                            <img 
+                              src={attachment.thumbnailUrl || attachment.fileUrl} 
+                              alt={attachment.filename} 
+                              className="h-full w-full object-cover transition-all hover:scale-105"
+                            />
+                          </a>
+                        ) : (
+                          <a 
+                            href={attachment.fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex h-full w-full flex-col items-center justify-center gap-1 p-4"
+                          >
+                            <FileIcon className="h-8 w-8 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate max-w-full">
+                              {attachment.filename}
+                            </span>
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mt-2 text-xs">
+                        <span className="truncate">{attachment.filename}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleFileRemove(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="submit">Add Expense</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
+      <CameraDialog
+        isOpen={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCapture}
+      />
     </Dialog>
   );
-}
+};

@@ -6,9 +6,11 @@ import { CreateTripDialog } from "@/components/CreateTripDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { Sidebar } from "@/components/Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background">

@@ -1,57 +1,44 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Trip, Expense } from "@/types";
-import { AddExpenseDialog } from "./AddExpenseDialog";
-import { formatCurrency, getParticipantName } from "@/utils/expenseCalculator";
-import { format } from "date-fns";
+import React, { useState, useEffect } from "react";
+import { Expense } from "@/types";
+import { ExpenseItem } from "@/components/ExpenseItem";
+import { AddExpenseDialog } from "@/components/AddExpenseDialog";
+import { EditExpenseDialog } from "@/components/EditExpenseDialog";
+import { ConfirmationDialog } from "@/components/ConfirmationDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { 
-  Download, 
-  Image, 
-  Paperclip, 
-  MoreVertical, 
-  Edit, 
-  Eye, 
-  FileText,
-  Trash2,
-  Camera
-} from "lucide-react";
-import { generateDailyExpensePDF } from "@/utils/pdfGenerator";
+import { Card, CardContent } from "@/components/ui/card";
+import { format, parseISO } from 'date-fns';
+import { formatCurrency } from "@/utils/expenseCalculator";
+import { FileIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { EditExpenseDialog } from "./EditExpenseDialog";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { generateExpensePDF } from "@/utils/pdfGenerator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { getPaidByName, getSplitMethodName } from "@/lib/utils";
+import { Search, ArrowUp, ArrowDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface ExpensesViewProps {
-  trip: Trip;
-  onRefresh?: () => void;
+  trip: any;
+  onExpenseAdded: () => void;
+  onExpensePreview: (expense: Expense) => void;
+  onExpenseUpdated: () => void;
+  showSidebar?: boolean;
 }
 
-export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
-  const { toast } = useToast();
-  const [previewExpense, setPreviewExpense] = useState<Expense | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+export function ExpensesView({ 
+  trip,
+  onExpenseAdded,
+  showSidebar = true
+}: ExpensesViewProps) {
+  const [expenses, setExpenses] = useState<Expense[]>(trip.expenses);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-
-  // Make the component instance available globally for event handlers
+  const [expenseToPreview, setExpenseToPreview] = useState<Expense | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [finalDeleteConfirmOpen, setFinalDeleteConfirmOpen] = useState(false);
+  const [showAddExpenseDialog, setShowAddExpenseDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Expose methods to window for delete trigger button
   useEffect(() => {
     (window as any).expenseViewComponent = {
       setExpenseToDelete,
@@ -59,69 +46,59 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     };
     
     return () => {
-      delete (window as any).expenseViewComponent;
+      (window as any).expenseViewComponent = undefined;
     };
   }, []);
 
-  const expensesByDate = trip.expenses.reduce<Record<string, Expense[]>>(
-    (groups, expense) => {
-      const date = expense.date;
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(expense);
-      return groups;
-    },
-    {}
-  );
-
-  const sortedDates = Object.keys(expensesByDate).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
-  );
-
-  const getDayTotal = (expenses: Expense[]): number => {
-    return expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const handleExpenseAdded = (newExpense: Expense) => {
+    setExpenses(prevExpenses => [...prevExpenses, newExpense]);
+    onExpenseAdded();
   };
 
-  const handleDownloadDailyReport = async (date: string) => {
-    try {
-      await generateDailyExpensePDF(trip, date);
-      toast({
-        title: "Success",
-        description: "Daily expense report downloaded successfully",
+  const handleExpenseUpdated = () => {
+    if ('startDate' in trip && 'endDate' in trip) {
+      import('@/services/tripService').then(tripService => {
+        tripService.getAllTrips().then(() => {
+          onExpenseUpdated();
+        });
       });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate PDF report",
-        variant: "destructive",
+    } else {
+      import('@/services/groupService').then(groupService => {
+        groupService.getAllGroups().then(() => {
+          onExpenseUpdated();
+        });
       });
-      console.error("PDF generation error:", error);
     }
   };
 
-  const handleDownloadExpense = async (expense: Expense) => {
-    try {
-      await generateExpensePDF(trip, expense);
-      toast({
-        title: "Success",
-        description: "Expense details downloaded successfully",
+  const handleDownloadExpense = (expense: Expense) => {
+    if (expense.attachments && expense.attachments.length > 0) {
+      expense.attachments.forEach(attachment => {
+        const link = document.createElement('a');
+        link.href = attachment.fileUrl;
+        link.download = attachment.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       });
-    } catch (error) {
+    } else {
       toast({
-        title: "Error",
-        description: "Failed to generate expense PDF",
-        variant: "destructive",
+        title: "No attachments",
+        description: "This expense has no attachments to download.",
       });
-      console.error("PDF generation error:", error);
     }
   };
 
-  const handlePreviewExpense = (expense: Expense) => {
-    setPreviewExpense(expense);
-  };
+  const { toast } = useToast();
 
   const handleDeleteExpense = async () => {
+    if (!expenseToDelete) return;
+    
+    setDeleteConfirmOpen(false);
+    setFinalDeleteConfirmOpen(true);
+  };
+  
+  const handleFinalDeleteConfirm = async () => {
     if (!expenseToDelete) return;
     
     try {
@@ -137,17 +114,16 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
         await deleteExpense(trip.id, expenseToDelete.id);
       }
       
-      queryClient.invalidateQueries({ queryKey: ['trip', trip.id] });
-      queryClient.invalidateQueries({ queryKey: ['group', trip.id] });
-      
-      if (onRefresh) {
-        onRefresh();
-      }
+      // Update local expenses state
+      setExpenses(prevExpenses => 
+        prevExpenses.filter(e => e.id !== expenseToDelete.id)
+      );
       
       toast({
-        title: "Success",
-        description: "Expense deleted successfully",
+        title: "Expense deleted",
+        description: "The expense has been successfully deleted",
       });
+      
     } catch (error) {
       console.error("Error deleting expense:", error);
       toast({
@@ -156,438 +132,366 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
         variant: "destructive",
       });
     } finally {
-      setDeleteConfirmOpen(false);
+      setFinalDeleteConfirmOpen(false);
       setExpenseToDelete(null);
     }
   };
 
+  // Search and sort expenses
+  const filteredExpenses = expenses.filter(expense => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    
+    return (
+      expense.description.toLowerCase().includes(query) ||
+      new Date(expense.date).toLocaleDateString().includes(query)
+    );
+  }).sort((a, b) => {
+    // Sort by date
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    
+    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+
+  const toggleSortDirection = () => {
+    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Expense Navigation Sidebar */}
-      <div className="w-full lg:w-64 shrink-0">
-        <Card className="sticky top-4">
-          <CardContent className="p-4">
-            <h3 className="font-semibold mb-4">Expense Dates</h3>
-            <ScrollArea className="h-[calc(100vh-200px)]">
-              <div className="space-y-1 pr-2">
-                {sortedDates.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">No expenses yet</p>
-                ) : (
-                  sortedDates.map((date) => (
-                    <Button
-                      key={date}
-                      variant={selectedDate === date ? "default" : "ghost"}
-                      className="w-full justify-start text-left"
-                      onClick={() => {
-                        setSelectedDate(date);
-                        // Scroll to the date section
-                        const element = document.getElementById(`expense-date-${date}`);
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="text-sm">{format(new Date(date), "d MMM yyyy")}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {expensesByDate[date].length} expense{expensesByDate[date].length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </Button>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold">Expenses</h2>
+        <div className="flex items-center gap-2">
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search expenses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={toggleSortDirection}
+            title={`Sort ${sortDirection === 'asc' ? 'newest first' : 'oldest first'}`}
+          >
+            {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+          </Button>
+          <Button onClick={() => setShowAddExpenseDialog(true)}>
+            Add Expense
+          </Button>
+        </div>
       </div>
 
-      {/* Main Expenses Content */}
-      <div className="flex-1 space-y-6">
-        {sortedDates.length === 0 ? (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8 text-muted-foreground">
-                No expenses added yet.
-              </div>
-              <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
-            </CardContent>
-          </Card>
+      <div className="space-y-4">
+        {filteredExpenses.length === 0 ? (
+          <div className="text-center py-10 bg-muted/50 rounded-lg">
+            {searchQuery ? (
+              <>
+                <h3 className="text-lg font-medium">No matching expenses</h3>
+                <p className="text-muted-foreground mt-1">Try a different search term</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-medium">No expenses yet</h3>
+                <p className="text-muted-foreground mt-1 mb-4">
+                  Start tracking expenses for this {trip.hasOwnProperty('startDate') ? 'trip' : 'group'} by adding your first expense.
+                </p>
+                <Button onClick={() => setShowAddExpenseDialog(true)}>
+                  Add Your First Expense
+                </Button>
+              </>
+            )}
+          </div>
         ) : (
-          <>
-            {sortedDates.map((date) => (
-              <Card key={date} id={`expense-date-${date}`}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">
-                      {format(new Date(date), "EEEE, d MMMM yyyy")}
-                    </h2>
-                    <div className="flex items-center gap-3">
-                      <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]), trip.currency)}</p>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleDownloadDailyReport(date)}
-                        className="flex items-center gap-1"
-                      >
-                        <Download className="h-4 w-4" />
-                        <span>Download</span>
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {expensesByDate[date].map((expense) => (
-                      <ExpenseItem 
-                        key={expense.id} 
-                        expense={expense} 
-                        participants={trip.participants}
-                        trip={trip}
-                        onExpenseUpdated={onRefresh}
-                        onDownloadExpense={handleDownloadExpense}
-                        onPreviewExpense={handlePreviewExpense}
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="grid gap-4">
+            {filteredExpenses.map((expense) => (
+              <ExpenseItem
+                key={expense.id}
+                expense={expense}
+                trip={trip}
+                onExpenseClick={() => setSelectedExpense(expense)}
+                onDeleteExpense={() => {
+                  setExpenseToDelete(expense);
+                  setDeleteConfirmOpen(true);
+                }}
+                onEditExpense={() => setSelectedExpense(expense)}
+                onDownloadExpense={() => handleDownloadExpense(expense)}
+                onPreviewExpense={() => {
+                  setExpenseToPreview(expense);
+                  onExpensePreview(expense);
+                }}
+                onExpenseUpdated={() => handleExpenseUpdated()}
+              />
             ))}
-            <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
-          </>
+          </div>
         )}
       </div>
-      
-      <Dialog open={!!previewExpense} onOpenChange={(open) => !open && setPreviewExpense(null)}>
-        {previewExpense && (
-          <DialogContent className="sm:max-w-[600px]">
+
+      {/* Expense editing dialog */}
+      {selectedExpense && (
+        <EditExpenseDialog
+          trip={trip}
+          expense={selectedExpense}
+          onExpenseUpdated={() => {
+            handleExpenseUpdated();
+            setSelectedExpense(null);
+          }}
+          isOpen={!!selectedExpense}
+          onOpenChange={(open) => {
+            if (!open) setSelectedExpense(null);
+          }}
+        />
+      )}
+
+      {/* Add expense dialog */}
+      <AddExpenseDialog
+        trip={trip}
+        open={showAddExpenseDialog}
+        onOpenChange={setShowAddExpenseDialog}
+        onExpenseAdded={handleExpenseAdded}
+      />
+
+      {/* Delete confirmation dialogs */}
+      <ConfirmationDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteExpense}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense? This action can't be undone."
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
+      />
+
+      <ConfirmationDialog
+        isOpen={finalDeleteConfirmOpen}
+        onClose={() => setFinalDeleteConfirmOpen(false)}
+        onConfirm={handleFinalDeleteConfirm}
+        title="Final Confirmation"
+        description="This will permanently delete the expense. Are you absolutely sure?"
+        confirmLabel="Delete Expense"
+        cancelLabel="Keep Expense"
+      />
+
+      {/* Expense preview */}
+      {expenseToPreview && (
+        <Dialog open={!!expenseToPreview} onOpenChange={(open) => !open && setExpenseToPreview(null)}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl">{previewExpense.name}</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                {format(new Date(previewExpense.date), "EEEE, d MMMM yyyy")}
-              </DialogDescription>
+              <DialogTitle>Expense Preview</DialogTitle>
             </DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Amount</p>
-                  <p className="text-2xl font-bold">{formatCurrency(previewExpense.amount, trip.currency)}</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+                  <p className="text-base font-medium">{expenseToPreview.description}</p>
                 </div>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Category</p>
-                  <p className="text-xl font-semibold capitalize">{previewExpense.category}</p>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Amount</h3>
+                  <p className="text-base font-medium">{formatCurrency(expenseToPreview.amount)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Category</h3>
+                  <p className="text-base font-medium">{expenseToPreview.category}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Date</h3>
+                  <p className="text-base font-medium">{format(new Date(expenseToPreview.date), 'MMM d, yyyy')}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Paid By</h3>
+                  <p className="text-base font-medium">
+                    {getPaidByName(expenseToPreview.paidBy, trip.participants)}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Split Method</h3>
+                  <p className="text-base font-medium">
+                    {getSplitMethodName(expenseToPreview.splitMethod, expenseToPreview.splitAmounts)}
+                  </p>
                 </div>
               </div>
               
-              <div className="bg-muted/30 p-4 rounded-lg">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Paid By</p>
-                <div className="font-medium">
-                  {Array.isArray(previewExpense.paidBy) 
-                    ? previewExpense.paidBy.map(id => getParticipantName(id, trip.participants)).join(', ')
-                    : getParticipantName(previewExpense.paidBy, trip.participants)}
-                </div>
-                
-                {previewExpense.payerAmounts && (
-                  <div className="mt-2 space-y-1">
-                    {Object.entries(previewExpense.payerAmounts).map(([payerId, amount]) => (
-                      <div key={payerId} className="flex justify-between text-sm">
-                        <span>{getParticipantName(payerId, trip.participants)}</span>
-                        <span>{formatCurrency(amount, trip.currency)}</span>
+              {/* Split between */}
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Split Between</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {expenseToPreview.splitBetween.map(participantId => {
+                    const participant = trip.participants.find(p => p.id === participantId);
+                    if (!participant) return null;
+                    
+                    let amount = 0;
+                    if (expenseToPreview.splitMethod === 'custom' && expenseToPreview.splitAmounts) {
+                      amount = expenseToPreview.splitAmounts[participantId] || 0;
+                    } else {
+                      // Equal split
+                      amount = expenseToPreview.amount / expenseToPreview.splitBetween.length;
+                    }
+                    
+                    return (
+                      <div key={participantId} className="flex justify-between items-center p-2 bg-muted rounded-md">
+                        <span>{participant.name}</span>
+                        <span className="font-medium">{formatCurrency(amount)}</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <div className="bg-muted/30 p-4 rounded-lg">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Split Between</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {previewExpense.splitBetween.map(id => (
-                    <div key={id} className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary"></div>
-                      <span>{getParticipantName(id, trip.participants)}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-                
-                {previewExpense.splitAmounts && (
-                  <div className="mt-3 space-y-1">
-                    <Separator className="my-2" />
-                    <p className="text-sm font-medium">Custom Split Amounts</p>
-                    {Object.entries(previewExpense.splitAmounts).map(([splitId, amount]) => (
-                      <div key={splitId} className="flex justify-between text-sm">
-                        <span>{getParticipantName(splitId, trip.participants)}</span>
-                        <span>{formatCurrency(amount, trip.currency)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               
-              {previewExpense.notes && (
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Notes</p>
-                  <p className="text-base">{previewExpense.notes}</p>
+              {/* Notes */}
+              {expenseToPreview.notes && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Notes</h3>
+                  <p className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">{expenseToPreview.notes}</p>
                 </div>
               )}
               
-              {previewExpense.attachments && previewExpense.attachments.length > 0 && (
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-muted-foreground mb-3">Attachments</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {previewExpense.attachments.map(attachment => (
-                      <a 
-                        key={attachment.id}
-                        href={attachment.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center p-3 border rounded hover:bg-muted/50 transition-colors"
-                      >
-                        {attachment.thumbnailUrl ? (
-                          <img 
-                            src={attachment.thumbnailUrl} 
-                            alt={attachment.filename}
-                            className="w-12 h-12 mr-3 object-cover rounded" 
-                          />
-                        ) : (
-                          <FileText className="w-12 h-12 mr-3 text-muted-foreground" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{attachment.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(attachment.fileSize / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
-                      </a>
+              {/* Attachments */}
+              {expenseToPreview.attachments && expenseToPreview.attachments.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Attachments</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {expenseToPreview.attachments.map((attachment, index) => (
+                      <Card key={index} className="overflow-hidden">
+                        <CardContent className="p-2">
+                          <div className="aspect-square w-full overflow-hidden rounded-md bg-muted flex items-center justify-center">
+                            {attachment.fileType.startsWith('image/') ? (
+                              <a 
+                                href={attachment.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="w-full h-full"
+                              >
+                                <img 
+                                  src={attachment.thumbnailUrl || attachment.fileUrl} 
+                                  alt={attachment.filename} 
+                                  className="h-full w-full object-cover transition-all hover:scale-105"
+                                />
+                              </a>
+                            ) : (
+                              <a 
+                                href={attachment.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex h-full w-full flex-col items-center justify-center gap-1 p-4"
+                              >
+                                <FileIcon className="h-8 w-8 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground truncate max-w-full">
+                                  {attachment.filename}
+                                </span>
+                              </a>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 </div>
               )}
             </div>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setPreviewExpense(null)}
-              >
-                Close
-              </Button>
-              <Button
-                onClick={() => handleDownloadExpense(previewExpense)}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
+              <Button onClick={() => setExpenseToPreview(null)}>Close</Button>
             </DialogFooter>
           </DialogContent>
-        )}
-      </Dialog>
-      
-      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Expense</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this expense? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteExpense}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </Dialog>
+      )}
     </div>
   );
 }
 
 interface ExpenseItemProps {
   expense: Expense;
-  participants: Trip["participants"];
-  trip: Trip;
-  onExpenseUpdated?: () => void;
-  onDownloadExpense: (expense: Expense) => void;
-  onPreviewExpense: (expense: Expense) => void;
+  trip: any;
+  onExpenseClick: () => void;
+  onDeleteExpense: () => void;
+  onEditExpense: () => void;
+  onDownloadExpense: () => void;
+  onPreviewExpense: () => void;
+  onExpenseUpdated: () => void;
 }
 
-function ExpenseItem({ 
-  expense, 
-  participants, 
-  trip, 
-  onExpenseUpdated,
+export function ExpenseItem({
+  expense,
+  trip,
+  onExpenseClick,
+  onDeleteExpense,
+  onEditExpense,
   onDownloadExpense,
-  onPreviewExpense 
+  onPreviewExpense,
+  onExpenseUpdated,
 }: ExpenseItemProps) {
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  
-  const getPaidByName = (paidBy: string | string[], participants: Trip["participants"]) => {
-    if (Array.isArray(paidBy)) {
-      const payerNames = paidBy.map(id => 
-        getParticipantName(id, participants)
-      );
-      return payerNames.join(', ');
-    } else {
-      return getParticipantName(paidBy, participants);
-    }
-  };
-
-  const paidByName = getPaidByName(expense.paidBy, participants);
-  const shareAmount = expense.amount / expense.splitBetween.length;
-  
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "food":
-        return "🍔";
-      case "accommodation":
-        return "🏨";
-      case "transportation":
-        return "🚕";
-      case "activities":
-        return "🎯";
-      case "shopping":
-        return "🛍️";
-      default:
-        return "📝";
-    }
-  };
-
-  const hasAttachments = expense.attachments && expense.attachments.length > 0;
+  const formatDate = (dateString: string) => format(parseISO(dateString), "MMM d, yyyy");
+  const paidByNames = getPaidByName(expense.paidBy, trip.participants);
 
   return (
-    <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-      <div className="flex items-start justify-between">
-        <div className="flex gap-3">
-          <div className="text-xl">{getCategoryIcon(expense.category)}</div>
+    <Card className="transition-all hover:shadow-md">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium">{expense.name}</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Paid by {paidByName} • Split {expense.splitBetween.length} ways
-            </p>
-            {expense.notes && (
-              <p className="text-sm mt-1 italic">{expense.notes}</p>
-            )}
-            
-            {hasAttachments && (
-              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                <Paperclip className="h-3 w-3" />
-                <span>{expense.attachments!.length} attachment{expense.attachments!.length !== 1 ? 's' : ''}</span>
-              </div>
-            )}
-            
-            {hasAttachments && (
-              <div className="flex gap-2 mt-2">
-                {expense.attachments!.slice(0, 3).map((attachment) => (
-                  attachment.fileType.startsWith('image/') && attachment.thumbnailUrl ? (
-                    <a 
-                      key={attachment.id}
-                      href={attachment.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-12 h-12 rounded border overflow-hidden"
-                    >
-                      <img 
-                        src={attachment.thumbnailUrl} 
-                        alt={attachment.filename}
-                        className="w-full h-full object-cover" 
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      key={attachment.id}
-                      href={attachment.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center w-12 h-12 rounded border bg-muted"
-                    >
-                      <Paperclip className="h-5 w-5 text-muted-foreground" />
-                    </a>
-                  )
-                ))}
-                {expense.attachments!.length > 3 && (
-                  <div className="flex items-center justify-center w-12 h-12 rounded border bg-muted">
-                    <span className="text-xs text-muted-foreground">+{expense.attachments!.length - 3}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            <h3 className="font-bold text-lg">{expense.description}</h3>
+            <p className="text-sm text-muted-foreground">{formatDate(expense.date)}</p>
           </div>
-        </div>
-        <div className="flex items-start gap-2">
-          <div className="text-right">
-            <p className="font-medium">{formatCurrency(expense.amount, trip.currency)}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(shareAmount, trip.currency)}/person
-            </p>
-          </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit Expense</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onPreviewExpense(expense)}>
-                <Eye className="mr-2 h-4 w-4" />
-                <span>Preview Expense</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDownloadExpense(expense)}>
-                <FileText className="mr-2 h-4 w-4" />
-                <span>Download Details</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => {
-                  const confirmDelete = document.getElementById(`delete-expense-${expense.id}-trigger`);
-                  if (confirmDelete) confirmDelete.click();
-                }}
-                className="text-destructive"
+          <div className="space-x-2 flex items-center">
+            <Button variant="ghost" size="icon" onClick={onPreviewExpense} aria-label="Preview expense">
+              <Search className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onEditExpense} aria-label="Edit expense">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-edit h-4 w-4"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete Expense</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          {showEditDialog && (
-            <EditExpenseDialog 
-              trip={trip} 
-              expense={expense} 
-              onExpenseUpdated={() => {
-                if (onExpenseUpdated) onExpenseUpdated();
-                setShowEditDialog(false);
-              }} 
-              isOpen={showEditDialog}
-              onOpenChange={setShowEditDialog}
-            />
-          )}
-          
-          <Button 
-            id={`delete-expense-${expense.id}-trigger`} 
-            className="hidden"
-            onClick={() => {
-              const expenseViewComponent = (window as any).expenseViewComponent;
-              if (expenseViewComponent) {
-                expenseViewComponent.setExpenseToDelete(expense);
-                expenseViewComponent.setDeleteConfirmOpen(true);
-              }
-            }}
-          />
+                <path d="M11 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                <path d="M15 3h4a2 2 0 0 1 2 2v2m-16 4l4.6-1.38a1.41 1.41 0 0 1 1.78.47l5.6 5.6a1.41 1.41 0 0 1 .47 1.78l-1.38 4.6z" />
+                <path d="M19 13l-5.6-5.6" />
+                </svg>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onDeleteExpense} aria-label="Delete expense">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-trash h-4 w-4"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div className="mt-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Amount</span>
+            <span className="font-medium">{formatCurrency(expense.amount)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Category</span>
+            <span className="font-medium">{expense.category}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Paid By</span>
+            <span className="font-medium">{paidByNames}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

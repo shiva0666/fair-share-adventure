@@ -15,7 +15,7 @@ const signupSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
   confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
+}).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
 });
@@ -48,23 +48,20 @@ const SignupForm = ({ onToggleForm }: SignupFormProps) => {
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // This is where you would normally make your API call
-      // For now, we'll just simulate a successful signup
-      localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email }));
+      // Sign up logic here
+      console.log("Signup data:", data);
       
       toast({
-        title: "Account created",
-        description: "You have successfully signed up!",
+        title: "Account created!",
+        description: "Your account has been created successfully.",
       });
       
       navigate("/dashboard");
     } catch (error) {
+      console.error("Signup error:", error);
       toast({
-        title: "Signup failed",
-        description: "Please try again later.",
+        title: "Error",
+        description: "There was a problem creating your account.",
         variant: "destructive",
       });
     } finally {
@@ -73,56 +70,69 @@ const SignupForm = ({ onToggleForm }: SignupFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          placeholder="John Doe"
-          {...register("name")}
-        />
-        {errors.name && (
-          <p className="text-sm text-destructive">{errors.name.message}</p>
-        )}
+    <div className="w-full space-y-6">
+      <div className="flex flex-col space-y-2 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
+        <p className="text-sm text-muted-foreground">
+          Enter your information below to create your account
+        </p>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="name@example.com"
-          {...register("email")}
-        />
-        {errors.email && (
-          <p className="text-sm text-destructive">{errors.email.message}</p>
-        )}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Name</Label>
+          <Input
+            id="name"
+            placeholder="Enter your name"
+            {...register("name")}
+          />
+          {errors.name && (
+            <p className="text-sm text-destructive">{errors.name.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="name@example.com"
+            {...register("email")}
+          />
+          {errors.email && (
+            <p className="text-sm text-destructive">{errors.email.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <PasswordInput
+            id="password"
+            placeholder="Create a password"
+            {...register("password")}
+          />
+          {errors.password && (
+            <p className="text-sm text-destructive">{errors.password.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <PasswordInput
+            id="confirmPassword"
+            placeholder="Confirm your password"
+            {...register("confirmPassword")}
+          />
+          {errors.confirmPassword && (
+            <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+          )}
+        </div>
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "Creating account..." : "Create account"}
+        </Button>
+      </form>
+      <div className="text-center">
+        <Button variant="link" onClick={onToggleForm}>
+          Already have an account? Sign in
+        </Button>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <PasswordInput
-          id="password"
-          placeholder="••••••••"
-          {...register("password")}
-        />
-        {errors.password && (
-          <p className="text-sm text-destructive">{errors.password.message}</p>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <PasswordInput
-          id="confirmPassword"
-          placeholder="••••••••"
-          {...register("confirmPassword")}
-        />
-        {errors.confirmPassword && (
-          <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-        )}
-      </div>
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Creating account..." : "Create account"}
-      </Button>
-    </form>
+    </div>
   );
 };
 

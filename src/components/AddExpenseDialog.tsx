@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Expense, ExpenseCategory, Participant, Trip, ExpenseAttachment } from "@/types";
-import { Plus, Users, Split, DollarSign, Paperclip, X } from "lucide-react";
+import { Plus, Users, Split, DollarSign, Paperclip, X, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addExpense } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
@@ -64,7 +65,12 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [allowManualPayerAmounts, setAllowManualPayerAmounts] = useState(true);
   const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>([]);
+  const [showCameraCapture, setShowCameraCapture] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -130,6 +136,40 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       setSplitAmounts(updatedSplitAmounts);
     }
   }, [useCustomSplit, splitBetween, splitAmounts, amount, autoDistributeRemaining]);
+
+  // Handle camera initialization and cleanup
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+
+    const initCamera = async () => {
+      if (showCameraCapture && videoRef.current) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+          });
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Camera access error:", err);
+          toast({
+            title: "Camera Error",
+            description: "Could not access your camera. Please check permissions.",
+            variant: "destructive"
+          });
+          setShowCameraCapture(false);
+        }
+      }
+    };
+
+    initCamera();
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [showCameraCapture, toast]);
 
   const handleParticipantSelection = (participantId: string, checked: boolean) => {
     if (checked) {
@@ -414,6 +454,56 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     setFileAttachments(prev => prev.filter(attachment => attachment.id !== id));
   };
 
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      // Set canvas dimensions to match video dimensions
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // Draw the video frame to the canvas
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to blob and create a file-like object
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const id = uuidv4();
+            const filename = `receipt_photo_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+            const fileUrl = URL.createObjectURL(blob);
+            
+            const newAttachment: ExpenseAttachment = {
+              id,
+              filename,
+              fileType: 'image/jpeg',
+              fileSize: blob.size,
+              fileUrl,
+              thumbnailUrl: fileUrl,
+              uploadedAt: new Date().toISOString(),
+            };
+            
+            setFileAttachments(prev => [...prev, newAttachment]);
+            setShowCameraCapture(false);
+            
+            // Stop camera stream
+            const stream = video.srcObject as MediaStream;
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+            }
+            
+            toast({
+              title: "Photo captured",
+              description: "Receipt photo has been added to attachments",
+            });
+          }
+        }, 'image/jpeg', 0.9);
+      }
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -613,6 +703,45 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
                 </span>
               </div>
               
+              {showCameraCapture && (
+                <div className="border rounded-lg p-2 mt-2 bg-muted/30">
+                  <div className="relative aspect-video overflow-hidden rounded-md">
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      className="w-full h-full object-cover"
+                    />
+                    <canvas ref={canvasRef} className="hidden" />
+                  </div>
+                  
+                  <div className="flex justify-center mt-2">
+                    <Button 
+                      onClick={capturePhoto} 
+                      variant="default"
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      Capture Photo
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setShowCameraCapture(false);
+                        if (videoRef.current) {
+                          const stream = videoRef.current.srcObject as MediaStream;
+                          if (stream) {
+                            stream.getTracks().forEach(track => track.stop());
+                          }
+                        }
+                      }} 
+                      variant="outline" 
+                      className="ml-2"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               {fileAttachments.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   {fileAttachments.map(file => (
@@ -636,22 +765,44 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
                 </div>
               )}
               
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Paperclip className="mr-2 h-4 w-4" />
-                Attach Files
-              </Button>
-              <Input 
-                ref={fileInputRef}
-                type="file" 
-                className="hidden" 
-                multiple 
-                onChange={handleFileUpload}
-              />
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Paperclip className="mr-2 h-4 w-4" />
+                  Attach Files
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowCameraCapture(true)}
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Take Photo
+                </Button>
+                
+                <Input 
+                  ref={fileInputRef}
+                  type="file" 
+                  className="hidden" 
+                  multiple 
+                  onChange={handleFileUpload}
+                />
+                
+                <Input 
+                  ref={cameraInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment"
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="notes">Notes (Optional)</Label>

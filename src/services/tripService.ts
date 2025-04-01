@@ -208,6 +208,37 @@ export const deleteExpenseAttachment = async (
   });
 };
 
+// Delete expense from a trip
+export const deleteExpense = async (tripId: string, expenseId: string): Promise<Trip> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const trips = getStoredTrips();
+        const tripIndex = trips.findIndex(trip => trip.id === tripId);
+        
+        if (tripIndex === -1) {
+          throw new Error('Trip not found');
+        }
+        
+        const updatedTrip = {
+          ...trips[tripIndex],
+          expenses: trips[tripIndex].expenses.filter(e => e.id !== expenseId)
+        };
+        
+        // Recalculate balances
+        const tripWithBalances = updateParticipantBalances(updatedTrip) as Trip;
+        
+        trips[tripIndex] = tripWithBalances;
+        saveTrips(trips);
+        
+        resolve(tripWithBalances);
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
+};
+
 // Update trip details (name, dates, currency, etc.)
 export const updateTrip = async (tripId: string, updates: Partial<Trip>): Promise<Trip> => {
   return new Promise((resolve, reject) => {

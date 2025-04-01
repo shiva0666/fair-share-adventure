@@ -334,7 +334,6 @@ export const deleteExpense = async (groupId: string, expenseId: string): Promise
           throw new Error('Group not found');
         }
         
-        // Remove the expense
         const updatedGroup = {
           ...groups[groupIndex],
           expenses: groups[groupIndex].expenses.filter(e => e.id !== expenseId)

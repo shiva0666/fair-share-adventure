@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Trip, Expense } from "@/types";
 import { AddExpenseDialog } from "./AddExpenseDialog";
@@ -12,7 +13,8 @@ import {
   Edit, 
   Eye, 
   FileText,
-  Trash2
+  Trash2,
+  Camera
 } from "lucide-react";
 import { generateDailyExpensePDF } from "@/utils/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -32,8 +34,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -45,7 +49,20 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
   const [previewExpense, setPreviewExpense] = useState<Expense | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Make the component instance available globally for event handlers
+  useEffect(() => {
+    (window as any).expenseViewComponent = {
+      setExpenseToDelete,
+      setDeleteConfirmOpen
+    };
+    
+    return () => {
+      delete (window as any).expenseViewComponent;
+    };
+  }, []);
 
   const expensesByDate = trip.expenses.reduce<Record<string, Expense[]>>(
     (groups, expense) => {
@@ -142,124 +159,200 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {sortedDates.length === 0 ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center py-8 text-muted-foreground">
-              No expenses added yet.
-            </div>
-            <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Expense Navigation Sidebar */}
+      <div className="w-full lg:w-64 shrink-0">
+        <Card className="sticky top-4">
+          <CardContent className="p-4">
+            <h3 className="font-semibold mb-4">Expense Dates</h3>
+            <ScrollArea className="h-[calc(100vh-200px)]">
+              <div className="space-y-1 pr-2">
+                {sortedDates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No expenses yet</p>
+                ) : (
+                  sortedDates.map((date) => (
+                    <Button
+                      key={date}
+                      variant={selectedDate === date ? "default" : "ghost"}
+                      className="w-full justify-start text-left"
+                      onClick={() => {
+                        setSelectedDate(date);
+                        // Scroll to the date section
+                        const element = document.getElementById(`expense-date-${date}`);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm">{format(new Date(date), "d MMM yyyy")}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {expensesByDate[date].length} expense{expensesByDate[date].length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </Button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
-      ) : (
-        <>
-          {sortedDates.map((date) => (
-            <Card key={date}>
-              <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">
-                    {format(new Date(date), "EEEE, d MMMM yyyy")}
-                  </h2>
-                  <div className="flex items-center gap-3">
-                    <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]), trip.currency)}</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleDownloadDailyReport(date)}
-                      className="flex items-center gap-1"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>Download</span>
-                    </Button>
+      </div>
+
+      {/* Main Expenses Content */}
+      <div className="flex-1 space-y-6">
+        {sortedDates.length === 0 ? (
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center py-8 text-muted-foreground">
+                No expenses added yet.
+              </div>
+              <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {sortedDates.map((date) => (
+              <Card key={date} id={`expense-date-${date}`}>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold">
+                      {format(new Date(date), "EEEE, d MMMM yyyy")}
+                    </h2>
+                    <div className="flex items-center gap-3">
+                      <p>Total: {formatCurrency(getDayTotal(expensesByDate[date]), trip.currency)}</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleDownloadDailyReport(date)}
+                        className="flex items-center gap-1"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Download</span>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-4">
-                  {expensesByDate[date].map((expense) => (
-                    <ExpenseItem 
-                      key={expense.id} 
-                      expense={expense} 
-                      participants={trip.participants}
-                      trip={trip}
-                      onExpenseUpdated={onRefresh}
-                      onDownloadExpense={handleDownloadExpense}
-                      onPreviewExpense={handlePreviewExpense}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
-        </>
-      )}
+                  <div className="space-y-4">
+                    {expensesByDate[date].map((expense) => (
+                      <ExpenseItem 
+                        key={expense.id} 
+                        expense={expense} 
+                        participants={trip.participants}
+                        trip={trip}
+                        onExpenseUpdated={onRefresh}
+                        onDownloadExpense={handleDownloadExpense}
+                        onPreviewExpense={handlePreviewExpense}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
+          </>
+        )}
+      </div>
       
       <Dialog open={!!previewExpense} onOpenChange={(open) => !open && setPreviewExpense(null)}>
         {previewExpense && (
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>{previewExpense.name}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl">{previewExpense.name}</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 {format(new Date(previewExpense.date), "EEEE, d MMMM yyyy")}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Amount</p>
-                  <p className="text-lg font-semibold">{formatCurrency(previewExpense.amount, trip.currency)}</p>
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Amount</p>
+                  <p className="text-2xl font-bold">{formatCurrency(previewExpense.amount, trip.currency)}</p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Category</p>
-                  <p className="text-lg font-semibold capitalize">{previewExpense.category}</p>
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Category</p>
+                  <p className="text-xl font-semibold capitalize">{previewExpense.category}</p>
                 </div>
               </div>
               
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Paid By</p>
-                <p className="text-base">
+              <div className="bg-muted/30 p-4 rounded-lg">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Paid By</p>
+                <div className="font-medium">
                   {Array.isArray(previewExpense.paidBy) 
                     ? previewExpense.paidBy.map(id => getParticipantName(id, trip.participants)).join(', ')
                     : getParticipantName(previewExpense.paidBy, trip.participants)}
-                </p>
+                </div>
+                
+                {previewExpense.payerAmounts && (
+                  <div className="mt-2 space-y-1">
+                    {Object.entries(previewExpense.payerAmounts).map(([payerId, amount]) => (
+                      <div key={payerId} className="flex justify-between text-sm">
+                        <span>{getParticipantName(payerId, trip.participants)}</span>
+                        <span>{formatCurrency(amount, trip.currency)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Split Between</p>
-                <p className="text-base">
-                  {previewExpense.splitBetween.map(id => getParticipantName(id, trip.participants)).join(', ')}
-                </p>
+              <div className="bg-muted/30 p-4 rounded-lg">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Split Between</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {previewExpense.splitBetween.map(id => (
+                    <div key={id} className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary"></div>
+                      <span>{getParticipantName(id, trip.participants)}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                {previewExpense.splitAmounts && (
+                  <div className="mt-3 space-y-1">
+                    <Separator className="my-2" />
+                    <p className="text-sm font-medium">Custom Split Amounts</p>
+                    {Object.entries(previewExpense.splitAmounts).map(([splitId, amount]) => (
+                      <div key={splitId} className="flex justify-between text-sm">
+                        <span>{getParticipantName(splitId, trip.participants)}</span>
+                        <span>{formatCurrency(amount, trip.currency)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               
               {previewExpense.notes && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Notes</p>
                   <p className="text-base">{previewExpense.notes}</p>
                 </div>
               )}
               
               {previewExpense.attachments && previewExpense.attachments.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Attachments</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Attachments</p>
+                  <div className="grid grid-cols-2 gap-3">
                     {previewExpense.attachments.map(attachment => (
                       <a 
                         key={attachment.id}
                         href={attachment.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center p-2 border rounded hover:bg-muted/50"
+                        className="flex items-center p-3 border rounded hover:bg-muted/50 transition-colors"
                       >
                         {attachment.thumbnailUrl ? (
                           <img 
                             src={attachment.thumbnailUrl} 
                             alt={attachment.filename}
-                            className="w-8 h-8 mr-2 object-cover rounded" 
+                            className="w-12 h-12 mr-3 object-cover rounded" 
                           />
                         ) : (
-                          <FileText className="w-8 h-8 mr-2 text-muted-foreground" />
+                          <FileText className="w-12 h-12 mr-3 text-muted-foreground" />
                         )}
-                        <span className="text-sm truncate">{attachment.filename}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{attachment.filename}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(attachment.fileSize / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
                       </a>
                     ))}
                   </div>
@@ -474,7 +567,6 @@ function ExpenseItem({
                 if (onExpenseUpdated) onExpenseUpdated();
                 setShowEditDialog(false);
               }} 
-              isOpen={showEditDialog}
               onOpenChange={setShowEditDialog}
             />
           )}

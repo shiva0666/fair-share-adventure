@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,7 +7,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,9 +20,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Expense, ExpenseCategory, Participant, Trip, ExpenseAttachment } from "@/types";
-import { Edit, Users, Split, DollarSign, Trash2, Paperclip, Camera, X } from "lucide-react";
+import { Users, Split, DollarSign, Paperclip, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { updateExpense, deleteExpenseAttachment } from "@/services/tripService";
+import { updateExpense } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { v4 as uuidv4 } from 'uuid';
@@ -32,6 +31,8 @@ interface EditExpenseDialogProps {
   trip: Trip;
   expense: Expense;
   onExpenseUpdated?: () => void;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 const expenseCategories: ExpenseCategory[] = [
@@ -43,54 +44,33 @@ const expenseCategories: ExpenseCategory[] = [
   "other",
 ];
 
-export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpenseDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditExpenseDialog({ trip, expense, onExpenseUpdated, isOpen, onOpenChange }: EditExpenseDialogProps) {
   const [expenseName, setExpenseName] = useState(expense.name);
-  const [amount, setAmount] = useState(expense.amount.toString());
-  const [category, setCategory] = useState<ExpenseCategory>(expense.category as ExpenseCategory);
+  const [amount, setAmount] = useState(String(expense.amount));
+  const [category, setCategory] = useState<ExpenseCategory>(expense.category);
   const [date, setDate] = useState(expense.date);
-  const [paidBy, setPaidBy] = useState<string[]>(
-    Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy]
-  );
+  const [paidBy, setPaidBy] = useState<string[]>(Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy]);
   const [payerAmounts, setPayerAmounts] = useState<Record<string, string>>(
-    trip.participants.reduce((acc, p) => {
-      const amount = expense.payerAmounts?.[p.id] || 
-        (Array.isArray(expense.paidBy) && expense.paidBy.includes(p.id) 
-          ? expense.amount / expense.paidBy.length 
-          : (expense.paidBy === p.id ? expense.amount : 0));
-      return { ...acc, [p.id]: amount ? amount.toString() : "" };
-    }, {})
+    trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: String(expense.payerAmounts?.[p.id] || "") }), {})
   );
   const [splitBetween, setSplitBetween] = useState<string[]>(expense.splitBetween);
   const [useCustomSplit, setUseCustomSplit] = useState(!!expense.splitAmounts);
   const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>(
-    trip.participants.reduce((acc, p) => {
-      const amount = expense.splitAmounts?.[p.id] || 
-        (expense.splitBetween.includes(p.id) ? expense.amount / expense.splitBetween.length : 0);
-      return { ...acc, [p.id]: amount ? amount.toString() : "" };
-    }, {})
+    trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: String(expense.splitAmounts?.[p.id] || "") }), {})
   );
   const [autoDistributeRemaining, setAutoDistributeRemaining] = useState(true);
   const [notes, setNotes] = useState(expense.notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
-  const [attachments, setAttachments] = useState<ExpenseAttachment[]>(expense.attachments || []);
-  const [showCamera, setShowCamera] = useState(false);
-  const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
-  const [streamRef, setStreamRef] = useState<MediaStream | null>(null);
+  const [allowManualPayerAmounts, setAllowManualPayerAmounts] = useState(expense.payerAmounts !== undefined);
+  const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>(expense.attachments || []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    return () => {
-      if (streamRef) {
-        streamRef.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [streamRef]);
-
-  useEffect(() => {
+    if (allowManualPayerAmounts) return;
+    
     if (paidBy.length === 1) {
       const singlePayerId = paidBy[0];
       setPayerAmounts(prev => ({
@@ -111,7 +91,7 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
       
       setPayerAmounts(updatedPayerAmounts);
     }
-  }, [amount, paidBy]);
+  }, [amount, paidBy, allowManualPayerAmounts]);
 
   useEffect(() => {
     if (useCustomSplit && autoDistributeRemaining && splitBetween.length > 0) {
@@ -173,16 +153,9 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
       const newPaidBy = [...paidBy, participantId];
       setPaidBy(newPaidBy);
       
-      if (amount) {
-        const amountPerPayer = (parseFloat(amount) / newPaidBy.length).toFixed(2);
-        const updatedPayerAmounts = { ...payerAmounts };
-        
-        newPaidBy.forEach(id => {
-          updatedPayerAmounts[id] = amountPerPayer;
-        });
-        
-        setPayerAmounts(updatedPayerAmounts);
-      }
+      const updatedPayerAmounts = { ...payerAmounts };
+      updatedPayerAmounts[participantId] = "";
+      setPayerAmounts(updatedPayerAmounts);
     } else {
       if (paidBy.length > 1) {
         const newPaidBy = paidBy.filter((id) => id !== participantId);
@@ -190,14 +163,6 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
         
         const updatedPayerAmounts = { ...payerAmounts };
         updatedPayerAmounts[participantId] = "";
-        
-        if (amount && newPaidBy.length > 0) {
-          const amountPerPayer = (parseFloat(amount) / newPaidBy.length).toFixed(2);
-          newPaidBy.forEach(id => {
-            updatedPayerAmounts[id] = amountPerPayer;
-          });
-        }
-        
         setPayerAmounts(updatedPayerAmounts);
       } else {
         toast({
@@ -300,82 +265,6 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
     return true;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const fileList = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...fileList]);
-    }
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleRemoveAttachment = async (attachmentId: string) => {
-    try {
-      await deleteExpenseAttachment(trip.id, expense.id, attachmentId);
-      setAttachments(prev => prev.filter(a => a.id !== attachmentId));
-      toast({
-        title: "Attachment removed",
-        description: "The attachment has been removed successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error removing attachment",
-        description: "Failed to remove the attachment. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStreamRef(stream);
-      setShowCamera(true);
-      
-      if (videoRef) {
-        videoRef.srcObject = stream;
-      }
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      toast({
-        title: "Camera Error",
-        description: "Unable to access camera. Please check permissions.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef) {
-      streamRef.getTracks().forEach(track => track.stop());
-      setStreamRef(null);
-    }
-    setShowCamera(false);
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef) return;
-    
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.videoWidth;
-    canvas.height = videoRef.videoHeight;
-    const ctx = canvas.getContext("2d");
-    
-    if (ctx) {
-      ctx.drawImage(videoRef, 0, 0, canvas.width, canvas.height);
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
-          setFiles(prev => [...prev, file]);
-          stopCamera();
-        }
-      }, "image/jpeg");
-    }
-  };
-
   const handleSubmit = async () => {
     if (!expenseName.trim()) {
       toast({
@@ -437,24 +326,8 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
           }), {})
         : undefined;
       
-      let updatedAttachments = [...attachments];
-      if (files.length > 0) {
-        const currentTime = new Date().toISOString();
-        const newAttachments = files.map(file => ({
-          id: uuidv4(),
-          filename: file.name,
-          fileUrl: URL.createObjectURL(file),
-          fileType: file.type,
-          thumbnailUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
-          createdAt: currentTime,
-          uploadedAt: currentTime
-        }));
-        
-        updatedAttachments = [...attachments, ...newAttachments];
-      }
-      
-      await updateExpense(trip.id, {
-        ...expense,
+      const expenseData: Expense = {
+        id: expense.id,
         name: expenseName,
         amount: amountValue,
         category,
@@ -464,10 +337,20 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
         splitBetween,
         splitAmounts: formattedSplitAmounts,
         notes: notes.trim() || undefined,
-        attachments: updatedAttachments.length > 0 ? updatedAttachments : undefined,
-      });
+        attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
+        createdAt: expense.createdAt,
+      };
+      
+      if ('startDate' in trip && 'endDate' in trip) {
+        await updateExpense(trip.id, expenseData);
+      } else {
+        await import('@/services/groupService').then(module => {
+          return module.updateExpense(trip.id, expenseData);
+        });
+      }
       
       queryClient.invalidateQueries({ queryKey: ['trip', trip.id] });
+      queryClient.invalidateQueries({ queryKey: ['group', trip.id] });
       
       if (onExpenseUpdated) {
         onExpenseUpdated();
@@ -478,8 +361,9 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
         description: "Expense updated successfully!",
       });
       
-      setOpen(false);
+      onOpenChange(false);
     } catch (error) {
+      console.error("Error updating expense:", error);
       toast({
         title: "Error",
         description: "Failed to update expense. Please try again.",
@@ -490,18 +374,37 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (!newOpen) {
-        stopCamera();
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newAttachments: ExpenseAttachment[] = Array.from(e.target.files).map(file => {
+        const id = uuidv4();
+        const fileUrl = URL.createObjectURL(file);
+        
+        return {
+          id,
+          filename: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileUrl,
+          thumbnailUrl: file.type.startsWith('image/') ? fileUrl : undefined,
+          uploadedAt: new Date().toISOString(),
+        };
+      });
+      
+      setFileAttachments(prev => [...prev, ...newAttachments]);
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
-      setOpen(newOpen);
-    }}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Edit className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+    }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setFileAttachments(prev => prev.filter(attachment => attachment.id !== id));
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Edit Expense</DialogTitle>
@@ -558,114 +461,20 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
                 </SelectContent>
               </Select>
             </div>
-            
             <div className="grid gap-2">
-              <Label>Attachments</Label>
-              <div className="flex flex-wrap gap-2 mt-1 mb-2">
-                {attachments.map((attachment) => (
-                  <div 
-                    key={attachment.id} 
-                    className="relative group border rounded-md p-2 w-24 h-24 flex flex-col items-center justify-center text-center"
-                  >
-                    {attachment.fileType.startsWith('image/') && attachment.thumbnailUrl ? (
-                      <img 
-                        src={attachment.thumbnailUrl} 
-                        alt={attachment.filename}
-                        className="max-h-16 max-w-full object-contain" 
-                      />
-                    ) : (
-                      <div className="text-3xl">📄</div>
-                    )}
-                    <p className="text-xs truncate w-full mt-1">{attachment.filename}</p>
-                    
-                    <Button 
-                      variant="destructive" 
-                      size="icon" 
-                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRemoveAttachment(attachment.id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-                
-                {files.map((file, index) => (
-                  <div 
-                    key={index}
-                    className="relative group border rounded-md p-2 w-24 h-24 flex flex-col items-center justify-center text-center"
-                  >
-                    {file.type.startsWith('image/') ? (
-                      <img 
-                        src={URL.createObjectURL(file)} 
-                        alt={file.name}
-                        className="max-h-16 max-w-full object-contain" 
-                      />
-                    ) : (
-                      <div className="text-3xl">📄</div>
-                    )}
-                    <p className="text-xs truncate w-full mt-1">{file.name}</p>
-                    
-                    <Button 
-                      variant="destructive" 
-                      size="icon" 
-                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRemoveFile(index)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
-              {showCamera && (
-                <div className="relative border rounded-md p-2 mb-4">
-                  <video 
-                    ref={(ref) => setVideoRef(ref)}
-                    autoPlay 
-                    playsInline
-                    className="w-full h-[200px] object-cover rounded"
-                  ></video>
-                  <div className="flex justify-center gap-2 mt-2">
-                    <Button type="button" size="sm" onClick={capturePhoto}>Capture</Button>
-                    <Button type="button" size="sm" variant="outline" onClick={stopCamera}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex gap-2">
+              <div className="flex justify-between items-center">
+                <Label>Paid By</Label>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="flex items-center gap-2"
-                  onClick={() => document.getElementById('file-upload')?.click()}
+                  onClick={() => setAllowManualPayerAmounts(!allowManualPayerAmounts)}
+                  className="flex items-center gap-1 text-xs"
                 >
-                  <Paperclip className="h-4 w-4" />
-                  Attach Files
-                </Button>
-                <Input
-                  id="file-upload"
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                  onClick={startCamera}
-                >
-                  <Camera className="h-4 w-4" />
-                  Take Photo
+                  <DollarSign className="h-3 w-3" />
+                  {allowManualPayerAmounts ? "Auto Distribute" : "Enter Amounts Manually"}
                 </Button>
               </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label>Paid By</Label>
               <div className="flex items-center mb-2">
                 <Users className="h-4 w-4 mr-2" />
                 <span className="text-sm text-muted-foreground">
@@ -780,6 +589,55 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
               </div>
             </div>
             <div className="grid gap-2">
+              <Label>Attachments</Label>
+              <div className="flex items-center mb-2">
+                <Paperclip className="h-4 w-4 mr-2" />
+                <span className="text-sm text-muted-foreground">
+                  Attach receipts or related documents
+                </span>
+              </div>
+              
+              {fileAttachments.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {fileAttachments.map(file => (
+                    <div 
+                      key={file.id} 
+                      className="flex items-center border rounded-md p-2 bg-muted/50"
+                    >
+                      <div className="flex-1 truncate text-xs">
+                        {file.filename}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6" 
+                        onClick={() => handleRemoveAttachment(file.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="mr-2 h-4 w-4" />
+                Attach Files
+              </Button>
+              <Input 
+                ref={fileInputRef}
+                type="file" 
+                className="hidden" 
+                multiple 
+                onChange={handleFileUpload}
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
                 id="notes"
@@ -795,10 +653,7 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated }: EditExpen
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              stopCamera();
-              setOpen(false);
-            }}
+            onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
             Cancel

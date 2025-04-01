@@ -1,4 +1,3 @@
-
 export interface Expense {
   id: string;
   name: string;
@@ -11,6 +10,8 @@ export interface Expense {
   splitAmounts?: Record<string, number>;
   notes?: string;
   attachments?: ExpenseAttachment[];
+  description?: string;
+  splitMethod?: string;
 }
 
 export interface ExpenseAttachment {

@@ -1,73 +1,61 @@
 
-import React from "react";
-import { format, parseISO } from 'date-fns';
-import { Expense, Trip, Group } from "@/types";
+import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Search, Edit, Trash } from "lucide-react";
+import { Expense, Participant } from "@/types";
+import { CalendarIcon, Users } from 'lucide-react';
 import { formatCurrency } from "@/utils/expenseCalculator";
-import { getPaidByName } from "@/lib/utils";
+import { formatDate, getPaidByName, getSplitMethodName } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface ExpenseItemProps {
   expense: Expense;
-  trip: Trip | Group;
-  onExpenseClick: () => void;
-  onDeleteExpense: () => void;
-  onEditExpense: () => void;
-  onDownloadExpense: () => void;
-  onPreviewExpense: () => void;
-  onExpenseUpdated: () => void;
+  participants: Participant[];
+  onClick?: () => void;
+  currency?: string;
 }
 
-export function ExpenseItem({
+export const ExpenseItem: React.FC<ExpenseItemProps> = ({
   expense,
-  trip,
-  onExpenseClick,
-  onDeleteExpense,
-  onEditExpense,
-  onDownloadExpense,
-  onPreviewExpense,
-  onExpenseUpdated,
-}: ExpenseItemProps) {
-  const formatDate = (dateString: string) => format(parseISO(dateString), "MMM d, yyyy");
-  const paidByNames = getPaidByName(expense.paidBy, trip.participants);
+  participants,
+  onClick,
+  currency = "USD"
+}) => {
+  const paidByName = getPaidByName(expense.paidBy, participants);
+  const splitMethod = expense.splitMethod ? getSplitMethodName(expense.splitMethod, expense.splitAmounts) : "Equal split";
   
   return (
-    <Card className="transition-all hover:shadow-md">
+    <Card 
+      className="mb-4 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={onClick}
+    >
       <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex items-start justify-between">
           <div>
-            <h3 className="font-bold text-lg">{expense.name}</h3>
-            <p className="text-sm text-muted-foreground">{formatDate(expense.date)}</p>
+            <h3 className="font-medium">{expense.name}</h3>
+            {expense.description && (
+              <p className="text-sm text-muted-foreground">{expense.description}</p>
+            )}
+            <div className="flex items-center mt-1 text-sm text-muted-foreground">
+              <CalendarIcon className="w-4 h-4 mr-1" />
+              <span>{formatDate(expense.date)}</span>
+            </div>
           </div>
-          <div className="space-x-2 flex items-center">
-            <Button variant="ghost" size="icon" onClick={onPreviewExpense} aria-label="Preview expense">
-              <Search className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onEditExpense} aria-label="Edit expense">
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDeleteExpense} aria-label="Delete expense">
-              <Trash className="h-4 w-4" />
-            </Button>
+          <div className="text-right">
+            <div className="font-semibold">{formatCurrency(expense.amount, currency)}</div>
+            <Badge variant="outline" className="mt-1">
+              {expense.category}
+            </Badge>
           </div>
         </div>
-
-        <div className="mt-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Amount</span>
-            <span className="font-medium">{formatCurrency(expense.amount)}</span>
+        
+        <div className="flex items-center justify-between mt-3 text-sm">
+          <div className="flex items-center">
+            <Users className="w-4 h-4 mr-1" />
+            <span>Paid by: {paidByName}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Category</span>
-            <span className="font-medium">{expense.category}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Paid By</span>
-            <span className="font-medium">{paidByNames}</span>
-          </div>
+          <div>{splitMethod}</div>
         </div>
       </CardContent>
     </Card>
   );
-}
+};

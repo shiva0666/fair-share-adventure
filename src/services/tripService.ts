@@ -1,4 +1,3 @@
-
 import { DashboardSummary, Expense, ExpenseAttachment, Participant, Trip } from "@/types";
 import { updateParticipantBalances } from "@/utils/expenseCalculator";
 import { v4 as uuidv4 } from 'uuid';
@@ -447,4 +446,37 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
       resolve(summary);
     }, 500);
   });
+};
+
+// Create an expense
+export const createExpense = async (tripId: string, expense: Omit<Expense, "id">): Promise<Expense> => {
+  // This is a mock implementation
+  const newExpense = {
+    id: crypto.randomUUID(),
+    ...expense
+  };
+  
+  // In a real app, you would make an API call here
+  console.log(`Creating expense for trip ${tripId}:`, newExpense);
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  return newExpense as Expense;
+};
+
+// Delete a trip
+export const deleteTrip = async (tripId: string): Promise<void> => {
+  console.log(`Deleting trip with ID: ${tripId}`);
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return;
+};
+
+// Email a trip report
+export const emailTripReport = async (tripId: string, email: string): Promise<void> => {
+  console.log(`Emailing trip report for trip ${tripId} to ${email}`);
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return;
 };

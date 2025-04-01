@@ -1,7 +1,8 @@
 
-import { Participant } from "@/types";
+import { Participant, Expense } from "@/types";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { format, parseISO } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,4 +30,16 @@ export function getSplitMethodName(splitMethod: string | undefined, splitAmounts
   } else {
     return splitMethod;
   }
+}
+
+export function getTripDetailUrl(tripId: string): string {
+  return `/trips/${tripId}`;
+}
+
+export function getGroupDetailUrl(groupId: string): string {
+  return `/groups/${groupId}`;
+}
+
+export function formatDate(dateString: string): string {
+  return format(parseISO(dateString), "MMM d, yyyy");
 }

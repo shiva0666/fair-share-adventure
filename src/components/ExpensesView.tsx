@@ -39,15 +39,14 @@ import { formatCurrency } from "@/utils/expenseCalculator";
 import { useToast } from "@/hooks/use-toast";
 import { deleteExpense } from "@/services/tripService";
 import { Badge } from "@/components/ui/badge";
-import { formatDate, getPaidByName, getSplitMethodName } from "@/lib/utils";
+import { formatDate, getPaidByName } from "@/lib/utils";
 
 interface ExpensesViewProps {
   trip: Trip;
-  onExpenseAdded?: () => Promise<any>;
-  onExpenseUpdated?: () => Promise<any>;
+  onRefresh?: () => Promise<any>;
 }
 
-export function ExpensesView({ trip, onExpenseAdded, onExpenseUpdated }: ExpensesViewProps) {
+export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"date" | "amount" | "name">("date");
@@ -61,21 +60,22 @@ export function ExpensesView({ trip, onExpenseAdded, onExpenseUpdated }: Expense
 
   const handleExpenseAdded = () => {
     setIsAddExpenseDialogOpen(false);
-    if (onExpenseAdded) {
-      onExpenseAdded();
+    if (onRefresh) {
+      onRefresh();
     }
   };
   
   const handleExpenseUpdated = () => {
     setEditingExpense(null);
-    if (onExpenseUpdated) {
-      onExpenseUpdated();
+    if (onRefresh) {
+      onRefresh();
     }
   };
 
   useEffect(() => {
     let result = [...trip.expenses];
     
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(expense => 
@@ -84,10 +84,12 @@ export function ExpensesView({ trip, onExpenseAdded, onExpenseUpdated }: Expense
       );
     }
     
+    // Apply category filter
     if (categoryFilter) {
       result = result.filter(expense => expense.category === categoryFilter);
     }
     
+    // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
       
@@ -223,7 +225,7 @@ export function ExpensesView({ trip, onExpenseAdded, onExpenseUpdated }: Expense
       {isAddExpenseDialogOpen && (
         <AddExpenseDialog
           trip={trip}
-          open={isAddExpenseDialogOpen}
+          isOpen={isAddExpenseDialogOpen}
           onOpenChange={setIsAddExpenseDialogOpen}
           onExpenseAdded={handleExpenseAdded}
         />
@@ -296,6 +298,7 @@ export function ExpensesView({ trip, onExpenseAdded, onExpenseUpdated }: Expense
         </div>
       )}
       
+      {/* Expense preview */}
       {selectedExpense && (
         <div className="mt-6 p-4 border rounded-lg">
           <h3 className="text-lg font-semibold mb-4">{selectedExpense.name}</h3>

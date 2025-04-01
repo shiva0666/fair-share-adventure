@@ -32,7 +32,7 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({
         <div className="flex items-start justify-between">
           <div>
             <h3 className="font-medium">{expense.name}</h3>
-            {expense.description && expense.description !== expense.name && (
+            {expense.description && (
               <p className="text-sm text-muted-foreground">{expense.description}</p>
             )}
             <div className="flex items-center mt-1 text-sm text-muted-foreground">

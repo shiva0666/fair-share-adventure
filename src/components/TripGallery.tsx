@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Trip } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -7,6 +6,15 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Upload, X, Download, Send, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TripGalleryProps {
   trip: Trip;
@@ -20,16 +28,19 @@ interface GalleryImage {
 }
 
 export function TripGallery({ trip }: TripGalleryProps) {
-  // This would come from an API in a real app
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareMessage, setShareMessage] = useState(`Check out these photos from our ${trip.name} trip!`);
+  const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setUploading(true);
       
-      // Simulate upload delay
       setTimeout(() => {
         const newImages = Array.from(e.target.files || []).map((file) => ({
           id: Math.random().toString(36).substring(2, 9),
@@ -58,10 +69,33 @@ export function TripGallery({ trip }: TripGalleryProps) {
   };
 
   const handleShareImages = () => {
-    toast({
-      title: "Images shared",
-      description: "Gallery link has been shared with all participants.",
-    });
+    setShareDialogOpen(true);
+    setSelectedImages(images.map(img => img.id));
+  };
+
+  const toggleImageSelection = (id: string) => {
+    setSelectedImages(prev => 
+      prev.includes(id) 
+        ? prev.filter(imgId => imgId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleSendShare = () => {
+    setIsSharing(true);
+    
+    setTimeout(() => {
+      setIsSharing(false);
+      setShareDialogOpen(false);
+      
+      toast({
+        title: "Images shared",
+        description: `${selectedImages.length} image(s) have been shared with ${shareEmail}.`,
+      });
+      
+      setShareEmail("");
+      setSelectedImages([]);
+    }, 1500);
   };
 
   return (
@@ -70,7 +104,7 @@ export function TripGallery({ trip }: TripGalleryProps) {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Trip Photos</CardTitle>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleShareImages}>
+            <Button variant="outline" onClick={handleShareImages} disabled={images.length === 0}>
               <Send className="mr-2 h-4 w-4" />
               Share
             </Button>
@@ -148,6 +182,82 @@ export function TripGallery({ trip }: TripGalleryProps) {
           )}
         </CardContent>
       </Card>
+      
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Share Photos</DialogTitle>
+            <DialogDescription>
+              Select photos to share with others.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="share-email">Share with</Label>
+              <Input 
+                id="share-email" 
+                type="email" 
+                placeholder="Enter email address" 
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="share-message">Message</Label>
+              <Input 
+                id="share-message" 
+                placeholder="Add a message" 
+                value={shareMessage}
+                onChange={(e) => setShareMessage(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Select Photos</Label>
+              <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto p-1">
+                {images.map(image => (
+                  <div 
+                    key={image.id} 
+                    className={`relative rounded overflow-hidden border-2 ${
+                      selectedImages.includes(image.id) ? 'border-primary' : 'border-transparent'
+                    }`}
+                  >
+                    <img 
+                      src={image.url} 
+                      alt={image.name} 
+                      className="w-full h-24 object-cover"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Checkbox 
+                        checked={selectedImages.includes(image.id)}
+                        onCheckedChange={() => toggleImageSelection(image.id)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShareDialogOpen(false)}
+              disabled={isSharing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendShare}
+              disabled={isSharing || !shareEmail || selectedImages.length === 0}
+            >
+              {isSharing ? "Sharing..." : "Share"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

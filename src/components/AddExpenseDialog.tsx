@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,12 +20,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Expense, ExpenseCategory, Participant, Trip } from "@/types";
-import { Plus, Users, Split, DollarSign } from "lucide-react";
+import { Expense, ExpenseCategory, Participant, Trip, ExpenseAttachment } from "@/types";
+import { Plus, Users, Split, DollarSign, Paperclip, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addExpense } from "@/services/tripService";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { v4 as uuidv4 } from 'uuid';
 
 interface AddExpenseDialogProps {
   trip: Trip;
@@ -62,34 +62,30 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   const [autoDistributeRemaining, setAutoDistributeRemaining] = useState(true);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Always start with manual payer amounts enabled
   const [allowManualPayerAmounts, setAllowManualPayerAmounts] = useState(true);
+  const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Only initialize amounts when NOT in manual mode
   useEffect(() => {
     if (allowManualPayerAmounts) return;
     
     if (paidBy.length === 1) {
-      // If only one payer, they pay the full amount
       const singlePayerId = paidBy[0];
       setPayerAmounts(prev => ({
         ...Object.keys(prev).reduce((acc, id) => ({ ...acc, [id]: "" }), {}),
         [singlePayerId]: amount
       }));
     } else if (paidBy.length > 1 && amount) {
-      // Distribute equally among all payers for initial state
       const amountPerPayer = (parseFloat(amount) / paidBy.length).toFixed(2);
       const updatedPayerAmounts = { ...payerAmounts };
       
-      // Reset all payer amounts first
       Object.keys(updatedPayerAmounts).forEach(id => {
         updatedPayerAmounts[id] = "";
       });
       
-      // Set amounts for selected payers
       paidBy.forEach(id => {
         updatedPayerAmounts[id] = amountPerPayer;
       });
@@ -98,13 +94,11 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     }
   }, [amount, paidBy, allowManualPayerAmounts]);
 
-  // Auto-distribute remaining amount in custom split
   useEffect(() => {
     if (useCustomSplit && autoDistributeRemaining && splitBetween.length > 0) {
       const totalAmount = parseFloat(amount || "0");
       if (isNaN(totalAmount) || totalAmount <= 0) return;
 
-      // Calculate already allocated amount
       let allocatedAmount = 0;
       let allocatedParticipants = 0;
       
@@ -116,16 +110,13 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
         }
       });
 
-      // If all amounts are manually entered or no participants selected, don't auto-distribute
       if (allocatedParticipants === splitBetween.length || splitBetween.length === 0) return;
 
-      // Calculate remaining amount and participants
       const remainingAmount = totalAmount - allocatedAmount;
       const remainingParticipants = splitBetween.length - allocatedParticipants;
       
       if (remainingAmount <= 0 || remainingParticipants <= 0) return;
       
-      // Distribute remaining amount equally
       const amountPerRemaining = (remainingAmount / remainingParticipants).toFixed(2);
       
       const updatedSplitAmounts = { ...splitAmounts };
@@ -144,14 +135,12 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     if (checked) {
       setSplitBetween([...splitBetween, participantId]);
       
-      // When adding a participant to split, initialize their custom amount
       if (useCustomSplit) {
         setSplitAmounts(prev => ({ ...prev, [participantId]: "" }));
       }
     } else {
       setSplitBetween(splitBetween.filter((id) => id !== participantId));
       
-      // When removing a participant from split, remove their custom amount
       if (useCustomSplit) {
         const newSplitAmounts = { ...splitAmounts };
         delete newSplitAmounts[participantId];
@@ -162,21 +151,17 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
 
   const handlePayerSelection = (participantId: string, checked: boolean) => {
     if (checked) {
-      // Add to payers
       const newPaidBy = [...paidBy, participantId];
       setPaidBy(newPaidBy);
       
-      // In manual mode, just enable the field but don't set a value automatically
       const updatedPayerAmounts = { ...payerAmounts };
       updatedPayerAmounts[participantId] = "";
       setPayerAmounts(updatedPayerAmounts);
     } else {
-      // Don't allow removing the last payer
       if (paidBy.length > 1) {
         const newPaidBy = paidBy.filter((id) => id !== participantId);
         setPaidBy(newPaidBy);
         
-        // Remove this payer's amount
         const updatedPayerAmounts = { ...payerAmounts };
         updatedPayerAmounts[participantId] = "";
         setPayerAmounts(updatedPayerAmounts);
@@ -193,7 +178,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   const toggleCustomSplit = () => {
     setUseCustomSplit(!useCustomSplit);
     
-    // Reset split amounts when toggling off custom split
     if (useCustomSplit) {
       const resetAmounts = trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {});
       setSplitAmounts(resetAmounts);
@@ -215,10 +199,8 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   };
 
   const validateCustomSplitAmounts = () => {
-    // Skip validation if not using custom split
     if (!useCustomSplit) return true;
     
-    // Check if all selected participants have a value
     const selectedParticipants = splitBetween.filter(id => {
       const amount = parseFloat(splitAmounts[id] || "0");
       return !isNaN(amount) && amount >= 0;
@@ -233,14 +215,12 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       return false;
     }
     
-    // Check if the sum equals the total amount
     const amountValue = parseFloat(amount);
     const totalSplit = selectedParticipants.reduce(
       (sum, id) => sum + parseFloat(splitAmounts[id] || "0"), 
       0
     );
     
-    // Allow for small floating-point differences
     if (Math.abs(totalSplit - amountValue) > 0.01) {
       toast({
         title: "Split amounts don't match total",
@@ -254,7 +234,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   };
 
   const validatePayerAmounts = () => {
-    // Check if all payers have an amount
     const payersWithAmounts = paidBy.filter(id => {
       const amount = parseFloat(payerAmounts[id] || "0");
       return !isNaN(amount) && amount >= 0;
@@ -269,14 +248,12 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       return false;
     }
     
-    // Check if sum equals total amount
     const amountValue = parseFloat(amount);
     const totalPaid = paidBy.reduce(
       (sum, id) => sum + parseFloat(payerAmounts[id] || "0"),
       0
     );
     
-    // Allow for small floating-point differences
     if (Math.abs(totalPaid - amountValue) > 0.01) {
       toast({
         title: "Payer amounts don't match total",
@@ -290,7 +267,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (!expenseName.trim()) {
       toast({
         title: "Missing information",
@@ -328,12 +304,10 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       return;
     }
 
-    // Validate payer amounts
     if (!validatePayerAmounts()) {
       return;
     }
 
-    // Validate custom split amounts if enabled
     if (useCustomSplit && !validateCustomSplitAmounts()) {
       return;
     }
@@ -341,13 +315,11 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     try {
       setIsSubmitting(true);
       
-      // Format payer amounts for API
       const formattedPayerAmounts = paidBy.reduce((acc, id) => ({
         ...acc,
         [id]: parseFloat(payerAmounts[id] || "0")
       }), {});
       
-      // Format split amounts for the API
       const formattedSplitAmounts = useCustomSplit
         ? splitBetween.reduce((acc, id) => ({
             ...acc,
@@ -355,24 +327,30 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
           }), {})
         : undefined;
       
-      // Create the expense
-      await addExpense(trip.id, {
+      const expenseData = {
         name: expenseName,
         amount: amountValue,
         category,
         date,
-        paidBy: paidBy.length === 1 ? paidBy[0] : paidBy, // Send as string or string[]
+        paidBy: paidBy.length === 1 ? paidBy[0] : paidBy,
         payerAmounts: paidBy.length > 1 ? formattedPayerAmounts : undefined,
         splitBetween,
         splitAmounts: formattedSplitAmounts,
         notes: notes.trim() || undefined,
-      });
+        attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
+      };
       
-      // Refetch trip
+      if ('startDate' in trip && 'endDate' in trip) {
+        await addExpense(trip.id, expenseData);
+      } else {
+        await import('@/services/groupService').then(module => {
+          return module.addExpense(trip.id, expenseData);
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['trip', trip.id] });
       queryClient.invalidateQueries({ queryKey: ['group', trip.id] });
       
-      // Call callback if provided
       if (onExpenseAdded) {
         onExpenseAdded();
       }
@@ -382,7 +360,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
         description: "Expense added successfully!",
       });
       
-      // Reset form and close dialog
       setExpenseName("");
       setAmount("");
       setCategory("food");
@@ -393,6 +370,7 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
       setUseCustomSplit(false);
       setSplitAmounts(trip.participants.reduce((acc, p) => ({ ...acc, [p.id]: "" }), {}));
       setNotes("");
+      setFileAttachments([]);
       setAllowManualPayerAmounts(true);
       setOpen(false);
     } catch (error) {
@@ -405,6 +383,35 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newAttachments: ExpenseAttachment[] = Array.from(e.target.files).map(file => {
+        const id = uuidv4();
+        const fileUrl = URL.createObjectURL(file);
+        
+        return {
+          id,
+          filename: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileUrl,
+          thumbnailUrl: file.type.startsWith('image/') ? fileUrl : undefined,
+          uploadedAt: new Date().toISOString(),
+        };
+      });
+      
+      setFileAttachments(prev => [...prev, ...newAttachments]);
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setFileAttachments(prev => prev.filter(attachment => attachment.id !== id));
   };
 
   return (
@@ -596,6 +603,55 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Attachments</Label>
+              <div className="flex items-center mb-2">
+                <Paperclip className="h-4 w-4 mr-2" />
+                <span className="text-sm text-muted-foreground">
+                  Attach receipts or related documents
+                </span>
+              </div>
+              
+              {fileAttachments.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {fileAttachments.map(file => (
+                    <div 
+                      key={file.id} 
+                      className="flex items-center border rounded-md p-2 bg-muted/50"
+                    >
+                      <div className="flex-1 truncate text-xs">
+                        {file.filename}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6" 
+                        onClick={() => handleRemoveAttachment(file.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="mr-2 h-4 w-4" />
+                Attach Files
+              </Button>
+              <Input 
+                ref={fileInputRef}
+                type="file" 
+                className="hidden" 
+                multiple 
+                onChange={handleFileUpload}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="notes">Notes (Optional)</Label>

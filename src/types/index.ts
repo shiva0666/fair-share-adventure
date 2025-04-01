@@ -1,26 +1,25 @@
-
 export interface Expense {
   id: string;
   name: string;
   amount: number;
-  category: string;
   date: string;
-  paidBy: string[] | string; // Now supports multiple payers
-  payerAmounts?: Record<string, number>; // Amount contributed by each payer
+  category: ExpenseCategory;
+  paidBy: string | string[];
+  payerAmounts?: Record<string, number>;
   splitBetween: string[];
-  splitAmounts?: Record<string, number>; // Custom split amounts by participant id
+  splitAmounts?: Record<string, number>;
   notes?: string;
-  attachments?: ExpenseAttachment[]; // Optional file attachments
+  attachments?: ExpenseAttachment[];
 }
 
 export interface ExpenseAttachment {
   id: string;
   filename: string;
-  fileUrl: string;
   fileType: string;
+  fileSize: number;
+  fileUrl: string;
   thumbnailUrl?: string;
-  createdAt: string;
-  uploadedAt: string; // Add this field to fix the error in pdfGenerator.ts
+  uploadedAt: string;
 }
 
 export interface Participant {
@@ -40,7 +39,7 @@ export interface Trip {
   expenses: Expense[];
   status: 'active' | 'completed';
   createdAt: string;
-  currency?: string; // Add currency field
+  currency?: string;
 }
 
 export interface Group {

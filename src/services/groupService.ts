@@ -1,4 +1,3 @@
-
 import { Group, Expense, Participant } from "@/types";
 import { updateParticipantBalances } from "@/utils/expenseCalculator";
 import { v4 as uuidv4 } from 'uuid';
@@ -307,6 +306,38 @@ export const removeParticipant = async (groupId: string, participantId: string):
               splitAmounts: updatedSplitAmounts
             };
           })
+        };
+        
+        // Recalculate balances
+        const groupWithBalances = updateParticipantBalances(updatedGroup) as Group;
+        
+        groups[groupIndex] = groupWithBalances;
+        saveGroups(groups);
+        
+        resolve(groupWithBalances);
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
+};
+
+// Delete expense from a group
+export const deleteExpense = async (groupId: string, expenseId: string): Promise<Group> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const groups = getStoredGroups();
+        const groupIndex = groups.findIndex(group => group.id === groupId);
+        
+        if (groupIndex === -1) {
+          throw new Error('Group not found');
+        }
+        
+        // Remove the expense
+        const updatedGroup = {
+          ...groups[groupIndex],
+          expenses: groups[groupIndex].expenses.filter(e => e.id !== expenseId)
         };
         
         // Recalculate balances

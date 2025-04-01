@@ -11,7 +11,8 @@ import {
   MoreVertical, 
   Edit, 
   Eye, 
-  FileText 
+  FileText,
+  Trash2
 } from "lucide-react";
 import { generateDailyExpensePDF } from "@/utils/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +24,16 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { generateExpensePDF } from "@/utils/pdfGenerator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -31,6 +42,10 @@ interface ExpensesViewProps {
 
 export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
   const { toast } = useToast();
+  const [previewExpense, setPreviewExpense] = useState<Expense | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const queryClient = useQueryClient();
 
   const expensesByDate = trip.expenses.reduce<Record<string, Expense[]>>(
     (groups, expense) => {
@@ -87,10 +102,43 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
   };
 
   const handlePreviewExpense = (expense: Expense) => {
-    toast({
-      title: expense.name,
-      description: `${formatCurrency(expense.amount, trip.currency)} - ${expense.category}`,
-    });
+    setPreviewExpense(expense);
+  };
+
+  const handleDeleteExpense = async () => {
+    if (!expenseToDelete) return;
+    
+    try {
+      if ('startDate' in trip && 'endDate' in trip) {
+        const { deleteExpense } = await import('@/services/tripService');
+        await deleteExpense(trip.id, expenseToDelete.id);
+      } else {
+        const { deleteExpense } = await import('@/services/groupService');
+        await deleteExpense(trip.id, expenseToDelete.id);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['trip', trip.id] });
+      queryClient.invalidateQueries({ queryKey: ['group', trip.id] });
+      
+      if (onRefresh) {
+        onRefresh();
+      }
+      
+      toast({
+        title: "Success",
+        description: "Expense deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete expense. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setExpenseToDelete(null);
+    }
   };
 
   return (
@@ -145,6 +193,121 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
           <AddExpenseDialog trip={trip} onExpenseAdded={onRefresh} />
         </>
       )}
+      
+      <Dialog open={!!previewExpense} onOpenChange={(open) => !open && setPreviewExpense(null)}>
+        {previewExpense && (
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>{previewExpense.name}</DialogTitle>
+              <DialogDescription>
+                {format(new Date(previewExpense.date), "EEEE, d MMMM yyyy")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Amount</p>
+                  <p className="text-lg font-semibold">{formatCurrency(previewExpense.amount, trip.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Category</p>
+                  <p className="text-lg font-semibold capitalize">{previewExpense.category}</p>
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Paid By</p>
+                <p className="text-base">
+                  {Array.isArray(previewExpense.paidBy) 
+                    ? previewExpense.paidBy.map(id => getParticipantName(id, trip.participants)).join(', ')
+                    : getParticipantName(previewExpense.paidBy, trip.participants)}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Split Between</p>
+                <p className="text-base">
+                  {previewExpense.splitBetween.map(id => getParticipantName(id, trip.participants)).join(', ')}
+                </p>
+              </div>
+              
+              {previewExpense.notes && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                  <p className="text-base">{previewExpense.notes}</p>
+                </div>
+              )}
+              
+              {previewExpense.attachments && previewExpense.attachments.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Attachments</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {previewExpense.attachments.map(attachment => (
+                      <a 
+                        key={attachment.id}
+                        href={attachment.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center p-2 border rounded hover:bg-muted/50"
+                      >
+                        {attachment.thumbnailUrl ? (
+                          <img 
+                            src={attachment.thumbnailUrl} 
+                            alt={attachment.filename}
+                            className="w-8 h-8 mr-2 object-cover rounded" 
+                          />
+                        ) : (
+                          <FileText className="w-8 h-8 mr-2 text-muted-foreground" />
+                        )}
+                        <span className="text-sm truncate">{attachment.filename}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setPreviewExpense(null)}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => handleDownloadExpense(previewExpense)}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+      
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Expense</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this expense? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteExpense}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -198,6 +361,8 @@ function ExpenseItem({
   };
 
   const hasAttachments = expense.attachments && expense.attachments.length > 0;
+
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   return (
     <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
@@ -276,10 +441,7 @@ function ExpenseItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
-                const editDialog = document.getElementById(`edit-expense-${expense.id}-trigger`);
-                if (editDialog) editDialog.click();
-              }}>
+              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
                 <Edit className="mr-2 h-4 w-4" />
                 <span>Edit Expense</span>
               </DropdownMenuItem>
@@ -291,16 +453,40 @@ function ExpenseItem({
                 <FileText className="mr-2 h-4 w-4" />
                 <span>Download Details</span>
               </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  const confirmDelete = document.getElementById(`delete-expense-${expense.id}-trigger`);
+                  if (confirmDelete) confirmDelete.click();
+                }}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete Expense</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <span className="hidden">
+          {showEditDialog && (
             <EditExpenseDialog 
               trip={trip} 
               expense={expense} 
-              onExpenseUpdated={onExpenseUpdated} 
+              onExpenseUpdated={() => {
+                if (onExpenseUpdated) onExpenseUpdated();
+                setShowEditDialog(false);
+              }} 
+              isOpen={showEditDialog}
+              onOpenChange={setShowEditDialog}
             />
-          </span>
+          )}
+          
+          <Button 
+            id={`delete-expense-${expense.id}-trigger`} 
+            className="hidden"
+            onClick={() => {
+              (window as any).expenseViewComponent.setExpenseToDelete(expense);
+              (window as any).expenseViewComponent.setDeleteConfirmOpen(true);
+            }}
+          />
         </div>
       </div>
     </div>

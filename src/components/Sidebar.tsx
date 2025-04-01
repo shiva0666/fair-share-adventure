@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,10 +10,11 @@ import {
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { getAllTrips } from "@/services/tripService";
+import { getAllGroups } from "@/services/groupService";
 
 interface SidebarProps {
   className?: string;
@@ -26,13 +26,19 @@ export function Sidebar({ className }: SidebarProps) {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Fetch trips data for the sidebar
+  // Fetch trips and groups data for the sidebar
   const { data: trips } = useQuery({
     queryKey: ["trips"],
     queryFn: getAllTrips,
   });
+  
+  const { data: groups } = useQuery({
+    queryKey: ["groups"],
+    queryFn: getAllGroups,
+  });
 
   const activeTripsCount = trips?.filter(trip => trip.status === "active").length || 0;
+  const activeGroupsCount = groups?.filter(group => group.status === "active").length || 0;
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -59,7 +65,7 @@ export function Sidebar({ className }: SidebarProps) {
       path: "/trips",
     },
     {
-      name: "Your Groups",
+      name: `Your Groups ${activeGroupsCount > 0 ? `(${activeGroupsCount})` : ''}`,
       icon: <Users className="h-5 w-5" />,
       path: "/groups",
     },

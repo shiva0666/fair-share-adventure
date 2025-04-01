@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -6,7 +7,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Expense, Participant, Trip, ExpenseAttachment } from "@/types";
+import { Expense, Participant, Trip, ExpenseAttachment, ExpenseCategory } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
-import { Camera } from "lucide-react";
+import { Camera, X, FileIcon } from "lucide-react";
 import { CameraDialog } from "./CameraDialog";
-import { FileIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/expenseCalculator";
 
@@ -34,17 +33,17 @@ interface AddExpenseDialogProps {
 
 export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, onOpenChange, onExpenseAdded }) => {
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Food");
-  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<ExpenseCategory>("food");
+  const [name, setName] = useState("");
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [paidByIds, setPaidByIds] = useState<string[]>([trip.participants[0].id]);
+  const [paidByIds, setPaidByIds] = useState<string[]>([trip.participants[0]?.id || ""]);
   const [splitBetween, setSplitBetween] = useState<string[]>(trip.participants.map(p => p.id));
-  const [splitMethod, setSplitMethod] = useState<"equal" | "manual">("equal");
+  const [splitMethod, setSplitMethod] = useState<"equal" | "custom">("equal");
   const [splitAmounts, setSplitAmounts] = useState<{ [participantId: string]: number }>({});
   const [notes, setNotes] = useState("");
   const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>([]);
   const [showCamera, setShowCamera] = useState(false);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCameraSupported, setIsCameraSupported] = useState(false);
   const { toast } = useToast();
 
@@ -55,17 +54,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
 
   useEffect(() => {
     if (splitMethod === "equal") {
-      const equalAmount = parseFloat(amount) / splitBetween.length || 0;
-      const newSplitAmounts: { [participantId: string]: number } = {};
-      splitBetween.forEach(participantId => {
-        newSplitAmounts[participantId] = equalAmount;
-      });
-      setSplitAmounts(newSplitAmounts);
-    }
-  }, [amount, splitBetween, splitMethod]);
-
-  useEffect(() => {
-    if (amount && splitMethod === "equal") {
       const equalAmount = parseFloat(amount) / splitBetween.length || 0;
       const newSplitAmounts: { [participantId: string]: number } = {};
       splitBetween.forEach(participantId => {
@@ -89,13 +77,12 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       }
 
       const newAttachment: ExpenseAttachment = {
-        id: id,
+        id,
         filename: file.name,
-        fileUrl: fileUrl,
+        fileUrl,
         fileType: file.type,
         fileSize: file.size,
-        thumbnailUrl: thumbnailUrl,
-        createdAt: new Date().toISOString(),
+        thumbnailUrl,
         uploadedAt: new Date().toISOString()
       };
 
@@ -109,7 +96,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
     );
   };
 
-  const handleSplitMethodChange = (method: "equal" | "manual") => {
+  const handleSplitMethodChange = (method: "equal" | "custom") => {
     setSplitMethod(method);
     if (method === "equal") {
       const equalAmount = parseFloat(amount) / splitBetween.length || 0;
@@ -196,7 +183,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       return;
     }
 
-    if (splitMethod === "manual") {
+    if (splitMethod === "custom") {
       const totalSplitAmount = Object.values(splitAmounts).reduce((sum, amount) => sum + amount, 0);
       if (Math.abs(totalSplitAmount - parseFloat(amount)) > 0.01) {
         toast({
@@ -216,19 +203,18 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
     const newExpense: Omit<Expense, 'id'> = {
       amount: parseFloat(amount),
       category,
-      description,
+      name,
       date: date.toISOString(),
       paidBy: paidByIds,
-      splitBetween: splitBetween,
-      splitMethod,
+      splitBetween,
       splitAmounts: formattedSplitAmounts,
       notes: notes.trim() || undefined,
       attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
     };
     
     try {
-      const { createExpense } = await import('@/services/tripService');
-      const createdExpense = await createExpense(trip.id, newExpense);
+      const tripService = await import('@/services/tripService');
+      const createdExpense = await tripService.addExpense(trip.id, newExpense);
       
       onExpenseAdded(createdExpense);
       toast({
@@ -239,10 +225,10 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       
       // Reset form fields
       setAmount("");
-      setCategory("Food");
-      setDescription("");
+      setCategory("food");
+      setName("");
       setDate(new Date());
-      setPaidByIds([trip.participants[0].id]);
+      setPaidByIds([trip.participants[0]?.id || ""]);
       setSplitBetween(trip.participants.map(p => p.id));
       setSplitMethod("equal");
       setSplitAmounts({});
@@ -262,8 +248,8 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
   const handleCameraClick = () => {
     if (isCameraSupported) {
       setShowCamera(true);
-    } else {
-      cameraRef.current?.click();
+    } else if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -276,20 +262,11 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       fileType: 'image/jpeg',
       fileSize: 0, // We don't know exact size for captured images
       thumbnailUrl: imageDataURL,
-      createdAt: timestamp,
       uploadedAt: timestamp
     };
     
     setFileAttachments(prev => [...prev, newAttachment]);
     setShowCamera(false);
-  };
-
-  const getPaidByName = (paidByIds: string[], participants: Participant[]) => {
-    const names = paidByIds.map(id => {
-      const participant = participants.find(p => p.id === id);
-      return participant ? participant.name : "Unknown";
-    });
-    return names.join(", ");
   };
 
   return (
@@ -316,28 +293,28 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(value) => setCategory(value as ExpenseCategory)}>
                 <SelectTrigger id="category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Food">Food</SelectItem>
-                  <SelectItem value="Transportation">Transportation</SelectItem>
-                  <SelectItem value="Accommodation">Accommodation</SelectItem>
-                  <SelectItem value="Activities">Activities</SelectItem>
-                  <SelectItem value="Shopping">Shopping</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="food">Food</SelectItem>
+                  <SelectItem value="transportation">Transportation</SelectItem>
+                  <SelectItem value="accommodation">Accommodation</SelectItem>
+                  <SelectItem value="activities">Activities</SelectItem>
+                  <SelectItem value="shopping">Shopping</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="name">Description</Label>
             <Input
-              id="description"
+              id="name"
               placeholder="Expense description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -413,21 +390,23 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
             <Label>Split Method</Label>
             <div className="flex space-x-4">
               <Button
+                type="button"
                 variant={splitMethod === "equal" ? "default" : "outline"}
                 onClick={() => handleSplitMethodChange("equal")}
               >
                 Split Equally
               </Button>
               <Button
-                variant={splitMethod === "manual" ? "default" : "outline"}
-                onClick={() => handleSplitMethodChange("manual")}
+                type="button"
+                variant={splitMethod === "custom" ? "default" : "outline"}
+                onClick={() => handleSplitMethodChange("custom")}
                 disabled={splitBetween.length === 0}
               >
                 Split Manually
               </Button>
             </div>
           </div>
-          {splitMethod === "manual" && splitBetween.length > 0 && (
+          {splitMethod === "custom" && splitBetween.length > 0 && (
             <div className="space-y-2">
               <Label>Split Amounts</Label>
               {trip.participants.map((participant) => {
@@ -476,17 +455,14 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
                 className="hidden"
                 multiple
                 onChange={handleFileSelect}
-                ref={cameraRef}
+                ref={fileInputRef}
               />
-              <Button variant="outline" onClick={handleCameraClick}>
-                {isCameraSupported ? (
-                  <>
-                    <Camera className="mr-2 h-4 w-4" />
-                    Take Photo
-                  </>
-                ) : (
-                  'Add Attachment'
-                )}
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                Add Attachment
+              </Button>
+              <Button type="button" variant="outline" onClick={handleCameraClick}>
+                <Camera className="mr-2 h-4 w-4" />
+                Take Photo
               </Button>
               {fileAttachments.length > 0 && (
                 <span className="text-sm text-muted-foreground">

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -15,12 +16,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Expense, Participant, Trip, Group, ExpenseAttachment } from "@/types";
+import { Expense, Participant, Trip, Group, ExpenseAttachment, ExpenseCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { Camera } from "lucide-react";
+import { Camera, X, Download, FileIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileIcon } from "lucide-react";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -53,30 +53,34 @@ export function EditExpenseDialog({
 }: EditExpenseDialogProps) {
   const { toast } = useToast();
   const [amount, setAmount] = useState(expense.amount.toString());
-  const [category, setCategory] = useState(expense.category);
-  const [description, setDescription] = useState(expense.description);
+  const [category, setCategory] = useState<ExpenseCategory>(expense.category);
+  const [name, setName] = useState(expense.name);
   const [date, setDate] = useState<Date | undefined>(expense.date ? new Date(expense.date) : undefined);
-  const [paidByIds, setPaidByIds] = useState<string[]>(expense.paidBy);
+  const [paidByIds, setPaidByIds] = useState<string[]>(
+    Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy]
+  );
   const [splitBetween, setSplitBetween] = useState<string[]>(expense.splitBetween);
-  const [splitMethod, setSplitMethod] = useState<"equal" | "custom">(expense.splitMethod);
+  const [splitMethod, setSplitMethod] = useState<"equal" | "custom">(
+    expense.splitAmounts && Object.keys(expense.splitAmounts).length > 0 ? "custom" : "equal"
+  );
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>(expense.splitAmounts || {});
   const [notes, setNotes] = useState(expense.notes || "");
   const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>(
     expense.attachments || []
   );
   const [showCamera, setShowCamera] = useState(false);
-  const cameraRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { hasCamera } = useCamera();
 
   useEffect(() => {
     setAmount(expense.amount.toString());
     setCategory(expense.category);
-    setDescription(expense.description);
+    setName(expense.name);
     setDate(expense.date ? new Date(expense.date) : undefined);
-    setPaidByIds(expense.paidBy);
+    setPaidByIds(Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy]);
     setSplitBetween(expense.splitBetween);
-    setSplitMethod(expense.splitMethod);
+    setSplitMethod(expense.splitAmounts && Object.keys(expense.splitAmounts).length > 0 ? "custom" : "equal");
     setSplitAmounts(expense.splitAmounts || {});
     setNotes(expense.notes || "");
     setFileAttachments(expense.attachments || []);
@@ -100,7 +104,6 @@ export function EditExpenseDialog({
             fileType: file.type,
             fileSize: file.size,
             thumbnailUrl: thumbnailUrl,
-            createdAt: timestamp,
             uploadedAt: timestamp
           };
         })
@@ -153,7 +156,7 @@ export function EditExpenseDialog({
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || !category || !description || !date || paidByIds.length === 0 || splitBetween.length === 0) {
+    if (!amount || !category || !name || !date || paidByIds.length === 0 || splitBetween.length === 0) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -192,15 +195,14 @@ export function EditExpenseDialog({
       formattedSplitAmounts[participantId] = splitAmounts[participantId] || 0;
     });
 
-    const updatedExpense: Omit<Expense, 'id'> & { id: string } = {
+    const updatedExpense: Expense = {
       id: expense.id,
+      name,
       amount: parseFloat(amount),
       category,
-      description,
       date: date.toISOString(),
       paidBy: paidByIds,
       splitBetween: formattedSplitBetween,
-      splitMethod,
       splitAmounts: formattedSplitAmounts,
       notes: notes.trim() || undefined,
       attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
@@ -209,14 +211,10 @@ export function EditExpenseDialog({
     try {
       if ('startDate' in trip && 'endDate' in trip) {
         const tripService = await import('@/services/tripService');
-        if (typeof tripService.updateExpense === 'function') {
-          await tripService.updateExpense(trip.id, expense.id, updatedExpense);
-        } else {
-          throw new Error('updateExpense function not found in tripService');
-        }
+        await tripService.updateExpense(trip.id, updatedExpense);
       } else {
-        const { updateExpense } = await import('@/services/groupService');
-        await updateExpense(trip.id, expense.id, updatedExpense);
+        const groupService = await import('@/services/groupService');
+        await groupService.updateExpense(trip.id, updatedExpense);
       }
 
       toast({
@@ -262,10 +260,10 @@ export function EditExpenseDialog({
   };
 
   const startCamera = async () => {
-    if (cameraRef.current) {
+    if (videoRef.current) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        cameraRef.current.srcObject = stream;
+        videoRef.current.srcObject = stream;
         setShowCamera(true);
       } catch (error) {
         console.error("Error accessing camera:", error);
@@ -279,10 +277,10 @@ export function EditExpenseDialog({
   };
 
   const stopCamera = () => {
-    if (cameraRef.current && cameraRef.current.srcObject) {
-      const stream = cameraRef.current.srcObject as MediaStream;
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
-      cameraRef.current.srcObject = null;
+      videoRef.current.srcObject = null;
       setShowCamera(false);
     }
   };
@@ -306,7 +304,6 @@ export function EditExpenseDialog({
       fileType: 'image/jpeg',
       fileSize: 0, // We don't know exact size for captured images
       thumbnailUrl: imageDataURL,
-      createdAt: timestamp,
       uploadedAt: timestamp
     };
     
@@ -338,23 +335,31 @@ export function EditExpenseDialog({
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Input
-                type="text"
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Enter category"
-                required
-              />
+              <Select 
+                value={category} 
+                onValueChange={(val) => setCategory(val as ExpenseCategory)}
+              >
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="food">Food</SelectItem>
+                  <SelectItem value="transportation">Transportation</SelectItem>
+                  <SelectItem value="accommodation">Accommodation</SelectItem>
+                  <SelectItem value="activities">Activities</SelectItem>
+                  <SelectItem value="shopping">Shopping</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div>
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="name">Description</Label>
             <Input
               type="text"
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="Enter description"
               required
             />
@@ -477,10 +482,10 @@ export function EditExpenseDialog({
                           <Button
                             type="button"
                             variant="outline"
-                            size="xs"
+                            size="sm"
                             onClick={() => distributeRemaining(participant.id, parseFloat(amount) - Object.values(splitAmounts).reduce((sum, amount) => sum + amount, 0))}
                           >
-                            Distribute Remaining
+                            Distribute
                           </Button>
                         </div>
                       </div>
@@ -617,7 +622,7 @@ export function EditExpenseDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="relative aspect-video w-full overflow-hidden rounded-md">
-              <video ref={cameraRef} className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline />
+              <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline />
               <canvas ref={canvasRef} className="hidden" width="640" height="480" />
             </div>
             <DialogFooter>
@@ -627,8 +632,8 @@ export function EditExpenseDialog({
               <Button
                 type="button"
                 onClick={() => {
-                  if (cameraRef.current && canvasRef.current) {
-                    const video = cameraRef.current;
+                  if (videoRef.current && canvasRef.current) {
+                    const video = videoRef.current;
                     const canvas = canvasRef.current;
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
@@ -648,5 +653,3 @@ export function EditExpenseDialog({
     </Dialog>
   );
 }
-
-import { X, Download } from "lucide-react";

@@ -102,7 +102,11 @@ const TripDetail = () => {
           <TabsContent value="expenses" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
-                <ExpensesView trip={trip} onRefresh={() => refetch()} />
+                <ExpensesView 
+                  trip={trip} 
+                  onExpenseAdded={() => refetch()}
+                  onExpenseUpdated={() => refetch()}
+                />
               </div>
               <div className="space-y-6">
                 <TripSummary trip={trip} />

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Expense } from "@/types";
 import { ExpenseItem } from "@/components/ExpenseItem";
@@ -18,8 +19,8 @@ import { Input } from "@/components/ui/input";
 interface ExpensesViewProps {
   trip: any;
   onExpenseAdded: () => void;
-  onExpensePreview: (expense: Expense) => void;
-  onExpenseUpdated: () => void;
+  onExpensePreview?: (expense: Expense) => void;
+  onExpenseUpdated?: () => void;
   showSidebar?: boolean;
 }
 
@@ -59,13 +60,13 @@ export function ExpensesView({
     if ('startDate' in trip && 'endDate' in trip) {
       import('@/services/tripService').then(tripService => {
         tripService.getAllTrips().then(() => {
-          onExpenseUpdated();
+          if (onExpenseUpdated) onExpenseUpdated();
         });
       });
     } else {
       import('@/services/groupService').then(groupService => {
         groupService.getAllGroups().then(() => {
-          onExpenseUpdated();
+          if (onExpenseUpdated) onExpenseUpdated();
         });
       });
     }
@@ -104,11 +105,7 @@ export function ExpensesView({
     try {
       if ('startDate' in trip && 'endDate' in trip) {
         const tripService = await import('@/services/tripService');
-        if (typeof tripService.deleteExpense === 'function') {
-          await tripService.deleteExpense(trip.id, expenseToDelete.id);
-        } else {
-          throw new Error('deleteExpense function not found in tripService');
-        }
+        await tripService.deleteExpense(trip.id, expenseToDelete.id);
       } else {
         const { deleteExpense } = await import('@/services/groupService');
         await deleteExpense(trip.id, expenseToDelete.id);
@@ -143,7 +140,7 @@ export function ExpensesView({
     const query = searchQuery.toLowerCase();
     
     return (
-      expense.description.toLowerCase().includes(query) ||
+      expense.name.toLowerCase().includes(query) ||
       new Date(expense.date).toLocaleDateString().includes(query)
     );
   }).sort((a, b) => {
@@ -222,7 +219,6 @@ export function ExpensesView({
                 onDownloadExpense={() => handleDownloadExpense(expense)}
                 onPreviewExpense={() => {
                   setExpenseToPreview(expense);
-                  onExpensePreview(expense);
                 }}
                 onExpenseUpdated={() => handleExpenseUpdated()}
               />
@@ -287,7 +283,7 @@ export function ExpensesView({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                  <p className="text-base font-medium">{expenseToPreview.description}</p>
+                  <p className="text-base font-medium">{expenseToPreview.name}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Amount</h3>
@@ -310,7 +306,7 @@ export function ExpensesView({
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Split Method</h3>
                   <p className="text-base font-medium">
-                    {getSplitMethodName(expenseToPreview.splitMethod, expenseToPreview.splitAmounts)}
+                    {getSplitMethodName(expense.splitMethod, expenseToPreview.splitAmounts)}
                   </p>
                 </div>
               </div>
@@ -324,7 +320,7 @@ export function ExpensesView({
                     if (!participant) return null;
                     
                     let amount = 0;
-                    if (expenseToPreview.splitMethod === 'custom' && expenseToPreview.splitAmounts) {
+                    if (expenseToPreview.splitAmounts) {
                       amount = expenseToPreview.splitAmounts[participantId] || 0;
                     } else {
                       // Equal split
@@ -399,99 +395,5 @@ export function ExpensesView({
         </Dialog>
       )}
     </div>
-  );
-}
-
-interface ExpenseItemProps {
-  expense: Expense;
-  trip: any;
-  onExpenseClick: () => void;
-  onDeleteExpense: () => void;
-  onEditExpense: () => void;
-  onDownloadExpense: () => void;
-  onPreviewExpense: () => void;
-  onExpenseUpdated: () => void;
-}
-
-export function ExpenseItem({
-  expense,
-  trip,
-  onExpenseClick,
-  onDeleteExpense,
-  onEditExpense,
-  onDownloadExpense,
-  onPreviewExpense,
-  onExpenseUpdated,
-}: ExpenseItemProps) {
-  const formatDate = (dateString: string) => format(parseISO(dateString), "MMM d, yyyy");
-  const paidByNames = getPaidByName(expense.paidBy, trip.participants);
-
-  return (
-    <Card className="transition-all hover:shadow-md">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="font-bold text-lg">{expense.description}</h3>
-            <p className="text-sm text-muted-foreground">{formatDate(expense.date)}</p>
-          </div>
-          <div className="space-x-2 flex items-center">
-            <Button variant="ghost" size="icon" onClick={onPreviewExpense} aria-label="Preview expense">
-              <Search className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onEditExpense} aria-label="Edit expense">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-edit h-4 w-4"
-              >
-                <path d="M11 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
-                <path d="M15 3h4a2 2 0 0 1 2 2v2m-16 4l4.6-1.38a1.41 1.41 0 0 1 1.78.47l5.6 5.6a1.41 1.41 0 0 1 .47 1.78l-1.38 4.6z" />
-                <path d="M19 13l-5.6-5.6" />
-                </svg>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDeleteExpense} aria-label="Delete expense">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-trash h-4 w-4"
-              >
-                <path d="M3 6h18" />
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              </svg>
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Amount</span>
-            <span className="font-medium">{formatCurrency(expense.amount)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Category</span>
-            <span className="font-medium">{expense.category}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Paid By</span>
-            <span className="font-medium">{paidByNames}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

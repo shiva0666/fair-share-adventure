@@ -1,3 +1,4 @@
+
 import { DashboardSummary, Expense, ExpenseAttachment, Participant, Trip } from "@/types";
 import { updateParticipantBalances } from "@/utils/expenseCalculator";
 import { v4 as uuidv4 } from 'uuid';
@@ -154,6 +155,37 @@ export const updateExpense = async (tripId: string, updatedExpense: Expense): Pr
   });
 };
 
+// Delete expense from a trip
+export const deleteExpense = async (tripId: string, expenseId: string): Promise<Trip> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const trips = getStoredTrips();
+        const tripIndex = trips.findIndex(trip => trip.id === tripId);
+        
+        if (tripIndex === -1) {
+          throw new Error('Trip not found');
+        }
+        
+        const updatedTrip = {
+          ...trips[tripIndex],
+          expenses: trips[tripIndex].expenses.filter(e => e.id !== expenseId)
+        };
+        
+        // Recalculate balances
+        const tripWithBalances = updateParticipantBalances(updatedTrip) as Trip;
+        
+        trips[tripIndex] = tripWithBalances;
+        saveTrips(trips);
+        
+        resolve(tripWithBalances);
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
+};
+
 // Delete an expense attachment
 export const deleteExpenseAttachment = async (
   tripId: string, 
@@ -201,37 +233,6 @@ export const deleteExpenseAttachment = async (
         
         saveTrips(trips);
         resolve();
-      } catch (error) {
-        reject(error);
-      }
-    }, 500);
-  });
-};
-
-// Delete expense from a trip
-export const deleteExpense = async (tripId: string, expenseId: string): Promise<Trip> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      try {
-        const trips = getStoredTrips();
-        const tripIndex = trips.findIndex(trip => trip.id === tripId);
-        
-        if (tripIndex === -1) {
-          throw new Error('Trip not found');
-        }
-        
-        const updatedTrip = {
-          ...trips[tripIndex],
-          expenses: trips[tripIndex].expenses.filter(e => e.id !== expenseId)
-        };
-        
-        // Recalculate balances
-        const tripWithBalances = updateParticipantBalances(updatedTrip) as Trip;
-        
-        trips[tripIndex] = tripWithBalances;
-        saveTrips(trips);
-        
-        resolve(tripWithBalances);
       } catch (error) {
         reject(error);
       }
@@ -394,35 +395,15 @@ export const updateTripStatus = async (
           throw new Error('Trip not found');
         }
         
-        trips[tripIndex] = {
+        const updatedTrip = {
           ...trips[tripIndex],
-          status,
+          status
         };
         
+        trips[tripIndex] = updatedTrip;
         saveTrips(trips);
-        resolve(trips[tripIndex]);
-      } catch (error) {
-        reject(error);
-      }
-    }, 500);
-  });
-};
-
-// Delete a trip
-export const deleteTrip = async (tripId: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      try {
-        const trips = getStoredTrips();
-        const tripIndex = trips.findIndex(trip => trip.id === tripId);
         
-        if (tripIndex === -1) {
-          throw new Error('Trip not found');
-        }
-        
-        const updatedTrips = trips.filter(trip => trip.id !== tripId);
-        saveTrips(updatedTrips);
-        resolve();
+        resolve(updatedTrip);
       } catch (error) {
         reject(error);
       }
@@ -435,54 +416,35 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
   return new Promise(async (resolve) => {
     setTimeout(async () => {
       const trips = getStoredTrips();
-      const activeTrips = trips.filter(trip => trip.status === 'active').length;
       
-      // Get unique participants across all trips
-      const allParticipantIds = new Set<string>();
+      let totalExpenses = 0;
+      let tripParticipants = new Set<string>();
+      
       trips.forEach(trip => {
+        // Add up expense amounts
+        trip.expenses.forEach(expense => {
+          totalExpenses += expense.amount;
+        });
+        
+        // Get unique participants
         trip.participants.forEach(participant => {
-          allParticipantIds.add(participant.id);
+          tripParticipants.add(participant.id);
         });
       });
       
-      // Count total expenses
-      const totalExpenses = trips.reduce(
-        (count, trip) => count + trip.expenses.length,
-        0
-      );
-      
-      // Get group statistics
+      // Get group stats if necessary
       const groupStats = await getGroupStats();
       
-      resolve({
+      const summary: DashboardSummary = {
         totalTrips: trips.length,
-        activeTrips,
-        totalExpenses,
-        tripFriends: allParticipantIds.size,
-        totalGroups: groupStats.totalGroups,
-        activeGroups: groupStats.activeGroups
-      });
+        totalExpenses: Math.round(totalExpenses),
+        activeTrips: trips.filter(trip => trip.status === 'active').length,
+        tripFriends: tripParticipants.size,
+        totalGroups: groupStats?.totalGroups || 0,
+        activeGroups: groupStats?.activeGroups || 0
+      };
+      
+      resolve(summary);
     }, 500);
   });
-};
-
-// Email trip report
-export const emailTripReport = async (trip: Trip, email: string): Promise<void> => {
-  return new Promise((resolve) => {
-    // In a real app, this would call an API to send the email
-    console.log(`Sending trip report for ${trip.name} to ${email}`);
-    setTimeout(() => {
-      resolve();
-    }, 1000);
-  });
-};
-
-// Download trip report
-export const downloadTripReport = (trip: Trip): void => {
-  console.log(`Generating trip report for: ${trip.name}`);
-  // For now, just log the expenses
-  console.table(trip.expenses);
-  
-  // In a real implementation, this would generate a PDF, Excel, or CSV file
-  alert(`Report for ${trip.name} would be downloaded here in a real implementation.`);
 };

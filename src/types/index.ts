@@ -1,3 +1,4 @@
+
 export interface Expense {
   id: string;
   name: string;
@@ -20,7 +21,6 @@ export interface ExpenseAttachment {
   fileUrl: string;
   thumbnailUrl?: string;
   uploadedAt: string;
-  createdAt?: string;
 }
 
 export interface Participant {

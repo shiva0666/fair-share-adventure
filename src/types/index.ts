@@ -20,6 +20,7 @@ export interface ExpenseAttachment {
   fileUrl: string;
   thumbnailUrl?: string;
   uploadedAt: string;
+  createdAt?: string;
 }
 
 export interface Participant {
@@ -87,4 +88,56 @@ export interface DashboardSummary {
   tripFriends: number;
   totalGroups?: number;
   activeGroups?: number;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  username?: string;
+  email: string;
+  phoneNumber?: string;
+  photoURL?: string;
+  joinedDate: string;
+  language?: string;
+  darkMode?: boolean;
+  theme?: string;
+  isPublic?: boolean;
+  twoFactorEnabled?: boolean;
+  referralCode?: string;
+}
+
+export interface UserStats {
+  totalTrips: number;
+  totalGroups: number;
+  totalExpenses: number;
+  settlementsCompleted: number;
+  amountOwed: number;
+  amountDue: number;
+}
+
+export interface UserPermission {
+  canAddExpense: boolean;
+  canEditExpense: boolean;
+  canAddParticipants: boolean;
+  canRemoveParticipants: boolean;
+  canCompleteTripGroup: boolean;
+}
+
+export interface TripGroup {
+  id: string;
+  name: string;
+  type: 'trip' | 'group';
+  role: 'admin' | 'co-admin' | 'participant';
+  startDate?: string;
+  endDate?: string;
+  status: 'active' | 'completed' | 'archived';
+}
+
+export interface LoginActivity {
+  id: string;
+  device: string;
+  location: string;
+  ipAddress: string;
+  loginTime: string;
+  isCurrentSession: boolean;
 }

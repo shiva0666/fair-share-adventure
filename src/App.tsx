@@ -12,6 +12,7 @@ import GroupDetail from "./pages/GroupDetail";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
 import Settings from "./pages/Settings";
+import ProfileSettings from "./pages/ProfileSettings";
 import TripsPage from "./pages/TripsPage";
 import GroupsPage from "./pages/GroupsPage";
 import { AuthProvider } from "./hooks/useAuth";
@@ -75,6 +76,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Settings />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute>
+                      <ProfileSettings />
                     </ProtectedRoute>
                   } 
                 />

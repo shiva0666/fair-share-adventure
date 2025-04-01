@@ -1,3 +1,4 @@
+
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,8 @@ import {
   Settings, 
   HelpCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  UserCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -68,6 +70,11 @@ export function Sidebar({ className }: SidebarProps) {
       name: `Your Groups ${activeGroupsCount > 0 ? `(${activeGroupsCount})` : ''}`,
       icon: <Users className="h-5 w-5" />,
       path: "/groups",
+    },
+    {
+      name: "Profile",
+      icon: <UserCircle className="h-5 w-5" />,
+      path: "/profile",
     },
     {
       name: "Settings",

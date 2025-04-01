@@ -2,13 +2,15 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { UserProfile } from "@/types";
 
-interface User {
+interface User extends UserProfile {
   id: string;
   name: string;
   email: string;
   phoneNumber?: string;
   photoURL?: string;
+  joinedDate: string;
 }
 
 interface AuthContextType {
@@ -18,6 +20,7 @@ interface AuthContextType {
   registerUser: (email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
   logoutUser: () => void;
   loginWithGoogle: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,6 +54,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name,
         email,
         phoneNumber,
+        joinedDate: new Date().toISOString(),
+        username: email.split('@')[0],
+        language: 'english',
+        darkMode: false,
+        isPublic: true,
       };
       
       // Save to localStorage
@@ -87,6 +95,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: isEmail ? emailOrPhone.split('@')[0] : `User${Math.floor(Math.random() * 1000)}`,
         email: isEmail ? emailOrPhone : `user${Math.floor(Math.random() * 1000)}@example.com`,
         phoneNumber: !isEmail ? emailOrPhone : undefined,
+        joinedDate: new Date().toISOString(),
+        username: isEmail ? emailOrPhone.split('@')[0] : `user${Math.floor(Math.random() * 1000)}`,
+        language: 'english',
+        darkMode: false,
+        isPublic: true,
       };
       
       // Save to localStorage
@@ -120,6 +133,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: "Google User",
         email: "user@gmail.com",
         photoURL: "https://lh3.googleusercontent.com/a/default-user",
+        joinedDate: new Date().toISOString(),
+        username: "googleuser",
+        language: 'english',
+        darkMode: false,
+        isPublic: true,
       };
       
       // Save to localStorage
@@ -133,6 +151,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       navigate("/");
     } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUser = async (userData: Partial<User>) => {
+    setLoading(true);
+    
+    try {
+      // This is a mock implementation - in a real app, you'd call an API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (user) {
+        const updatedUser = { ...user, ...userData };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        
+        toast({
+          title: "Profile Updated",
+          description: "Your profile has been successfully updated.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update your profile. Please try again.",
+        variant: "destructive",
+      });
       throw error;
     } finally {
       setLoading(false);
@@ -158,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registerUser,
         logoutUser,
         loginWithGoogle,
+        updateUser,
       }}
     >
       {children}

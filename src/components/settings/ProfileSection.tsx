@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,21 @@ interface ProfileSectionProps {
 
 export const ProfileSection = ({ user }: ProfileSectionProps) => {
   const { toast } = useToast();
-  const [name, setName] = useState(user?.name || "");
-  const [username, setUsername] = useState(user?.username || "");
-  const [email, setEmail] = useState(user?.email || "");
-  const [phone, setPhone] = useState(user?.phoneNumber || "");
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Update state when user data changes
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setUsername(user.username || "");
+      setEmail(user.email || "");
+      setPhone(user.phoneNumber || "");
+    }
+  }, [user]);
   
   const joinedDate = user?.joinedDate || new Date().toISOString().split('T')[0];
   
@@ -48,7 +58,7 @@ export const ProfileSection = ({ user }: ProfileSectionProps) => {
                 <Avatar className="h-32 w-32">
                   <AvatarImage src={user?.photoURL} alt={user?.name} />
                   <AvatarFallback className="text-2xl">
-                    {name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    {name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : "?"}
                   </AvatarFallback>
                 </Avatar>
                 <Button 

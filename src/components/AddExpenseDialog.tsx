@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,7 +136,6 @@ export function AddExpenseDialog({ trip, onExpenseAdded }: AddExpenseDialogProps
     }
   }, [useCustomSplit, splitBetween, splitAmounts, amount, autoDistributeRemaining]);
 
-  // Handle camera initialization and cleanup
   useEffect(() => {
     let stream: MediaStream | null = null;
 

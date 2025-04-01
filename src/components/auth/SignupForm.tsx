@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -8,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { PasswordInput } from "@/components/ui/password-input";
-import { useAuth } from "@/hooks/use-auth";
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -22,11 +22,14 @@ const signupSchema = z.object({
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
+interface SignupFormProps {
+  onToggleForm?: () => void;
+}
+
 const SignupForm = ({ onToggleForm }: SignupFormProps) => {
-  const router = useNavigate();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { login } = useAuth();
 
   const {
     register,
@@ -39,7 +42,6 @@ const SignupForm = ({ onToggleForm }: SignupFormProps) => {
       email: "",
       password: "",
       confirmPassword: "",
-      acceptTerms: false,
     },
   });
 

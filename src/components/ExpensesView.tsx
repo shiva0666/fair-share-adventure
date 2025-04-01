@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Trip, Expense } from "@/types";
 import { AddExpenseDialog } from "./AddExpenseDialog";
@@ -127,8 +126,12 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
     
     try {
       if ('startDate' in trip && 'endDate' in trip) {
-        const { deleteExpense } = await import('@/services/tripService');
-        await deleteExpense(trip.id, expenseToDelete.id);
+        const tripService = await import('@/services/tripService');
+        if (typeof tripService.deleteExpense === 'function') {
+          await tripService.deleteExpense(trip.id, expenseToDelete.id);
+        } else {
+          throw new Error('deleteExpense function not found in tripService');
+        }
       } else {
         const { deleteExpense } = await import('@/services/groupService');
         await deleteExpense(trip.id, expenseToDelete.id);
@@ -422,6 +425,8 @@ function ExpenseItem({
   onDownloadExpense,
   onPreviewExpense 
 }: ExpenseItemProps) {
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  
   const getPaidByName = (paidBy: string | string[], participants: Trip["participants"]) => {
     if (Array.isArray(paidBy)) {
       const payerNames = paidBy.map(id => 
@@ -454,8 +459,6 @@ function ExpenseItem({
   };
 
   const hasAttachments = expense.attachments && expense.attachments.length > 0;
-
-  const [showEditDialog, setShowEditDialog] = useState(false);
 
   return (
     <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
@@ -567,6 +570,7 @@ function ExpenseItem({
                 if (onExpenseUpdated) onExpenseUpdated();
                 setShowEditDialog(false);
               }} 
+              isOpen={showEditDialog}
               onOpenChange={setShowEditDialog}
             />
           )}
@@ -575,8 +579,11 @@ function ExpenseItem({
             id={`delete-expense-${expense.id}-trigger`} 
             className="hidden"
             onClick={() => {
-              (window as any).expenseViewComponent.setExpenseToDelete(expense);
-              (window as any).expenseViewComponent.setDeleteConfirmOpen(true);
+              const expenseViewComponent = (window as any).expenseViewComponent;
+              if (expenseViewComponent) {
+                expenseViewComponent.setExpenseToDelete(expense);
+                expenseViewComponent.setDeleteConfirmOpen(true);
+              }
             }}
           />
         </div>

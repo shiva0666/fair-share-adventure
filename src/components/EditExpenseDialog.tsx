@@ -338,7 +338,6 @@ export function EditExpenseDialog({ trip, expense, onExpenseUpdated, isOpen, onO
         splitAmounts: formattedSplitAmounts,
         notes: notes.trim() || undefined,
         attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
-        createdAt: expense.createdAt,
       };
       
       if ('startDate' in trip && 'endDate' in trip) {

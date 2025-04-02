@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Trip, Expense } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,7 @@ import {
   Receipt,
   FileText,
   Download,
-  Share
+  Eye
 } from "lucide-react";
 import { ExpenseItem } from "@/components/ExpenseItem";
 import { AddExpenseDialog } from "@/components/AddExpenseDialog";
@@ -42,6 +41,7 @@ import { deleteExpense } from "@/services/tripService";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, getPaidByName } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { generateExpensePDF } from "@/utils/pdfGenerator";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -83,7 +83,6 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
   useEffect(() => {
     let result = [...trip.expenses];
     
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(expense => 
@@ -92,12 +91,10 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
       );
     }
     
-    // Apply category filter
     if (categoryFilter) {
       result = result.filter(expense => expense.category === categoryFilter);
     }
     
-    // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
       
@@ -130,6 +127,22 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
       toast({
         title: "Error",
         description: "Failed to delete the expense. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadExpense = async (expense: Expense) => {
+    try {
+      await generateExpensePDF(trip, expense);
+      toast({
+        title: "Expense downloaded",
+        description: "The expense has been downloaded as a PDF.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download the expense. Please try again.",
         variant: "destructive",
       });
     }
@@ -288,6 +301,14 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setSelectedExpense(expense)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        <span>Preview</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownloadExpense(expense)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        <span>Download</span>
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setEditingExpense(expense)}>
                         <Edit className="mr-2 h-4 w-4" />
                         <span>Edit</span>
@@ -354,6 +375,14 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
               onClick={() => setSelectedExpense(null)}
             >
               Close
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handleDownloadExpense(selectedExpense)}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Download
             </Button>
             <Button 
               variant="outline" 

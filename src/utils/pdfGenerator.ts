@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Expense, Participant, Trip } from '@/types';
@@ -404,6 +403,37 @@ export const generateExpensePDF = async (trip: Trip, expense: Expense): Promise<
   } finally {
     document.body.removeChild(reportContainer);
   }
+};
+
+// Generate email trip report
+export const generateEmailTripReport = async (trip: Trip): Promise<string> => {
+  // Format the trip data for an email
+  const totalExpenses = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  
+  // Create HTML content for the email
+  const emailContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #333;">${trip.name} - Trip Report</h1>
+      <p style="color: #666;">
+        ${new Date(trip.startDate).toLocaleDateString()} - ${new Date(trip.endDate).toLocaleDateString()}
+      </p>
+      
+      <div style="margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+        <h2 style="color: #444; font-size: 18px; margin-top: 0;">Summary</h2>
+        <p><strong>Total Expenses:</strong> ${formatCurrency(totalExpenses, trip.currency)}</p>
+        <p><strong>Participants:</strong> ${trip.participants.length}</p>
+        <p><strong>Number of Expenses:</strong> ${trip.expenses.length}</p>
+      </div>
+      
+      <p>This report was generated from Splittos. View the full report by logging into your account.</p>
+      
+      <p style="font-size: 12px; color: #999; margin-top: 40px;">
+        © ${new Date().getFullYear()} Splittos. All rights reserved.
+      </p>
+    </div>
+  `;
+  
+  return emailContent;
 };
 
 // Helper function for getting category with emoji

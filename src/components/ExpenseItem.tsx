@@ -55,6 +55,10 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({
           </div>
           <div>{splitMethod}</div>
         </div>
+        
+        <div className="mt-3 pt-2 border-t text-xs text-muted-foreground text-right">
+          <span>Splittos</span>
+        </div>
       </CardContent>
     </Card>
   );

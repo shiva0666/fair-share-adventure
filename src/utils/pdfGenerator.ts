@@ -2,7 +2,7 @@
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { Trip, Expense, Participant } from "@/types";
-import { formatCurrency, calculateSplitAmounts } from "./expenseCalculator";
+import { formatCurrency } from "./expenseCalculator";
 import { format } from "date-fns";
 import { getPaidByName } from "@/lib/utils";
 
@@ -23,6 +23,38 @@ const createBasicPdf = () => {
   pdf.line(40, 65, 550, 65);
   
   return pdf;
+};
+
+// Function to calculate split amounts for an expense
+const calculateSplitAmounts = (expense: Expense, participants: Participant[]) => {
+  const splitDetails = [];
+  
+  // If custom split amounts are defined
+  if (expense.splitAmounts) {
+    for (const participantId of expense.splitBetween) {
+      const participant = participants.find(p => p.id === participantId);
+      if (participant) {
+        splitDetails.push({
+          name: participant.name,
+          amount: expense.splitAmounts[participantId] || 0
+        });
+      }
+    }
+  } else {
+    // Equal split
+    const amount = expense.amount / expense.splitBetween.length;
+    for (const participantId of expense.splitBetween) {
+      const participant = participants.find(p => p.id === participantId);
+      if (participant) {
+        splitDetails.push({
+          name: participant.name,
+          amount
+        });
+      }
+    }
+  }
+  
+  return splitDetails;
 };
 
 // Function to generate a PDF report for an entire trip

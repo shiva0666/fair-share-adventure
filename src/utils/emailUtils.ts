@@ -18,7 +18,7 @@ export const sendTripReportEmail = async (trip: Trip): Promise<boolean> => {
       throw new Error("Invalid email address");
     }
     
-    await emailTripReport(trip.id, email);
+    await emailTripReport(trip.id, email); // Pass only the trip ID instead of the whole trip object
     return true;
   } catch (error) {
     console.error("Failed to send email:", error);

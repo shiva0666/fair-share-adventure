@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Trip, Expense } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -305,7 +304,6 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
         </div>
       )}
       
-      {/* Expense preview */}
       {selectedExpense && (
         <div className="mt-6 p-4 border rounded-lg">
           <h3 className="text-lg font-semibold mb-4">{selectedExpense.name}</h3>

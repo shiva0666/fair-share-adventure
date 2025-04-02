@@ -48,6 +48,15 @@ const TripDetail = () => {
     return <ErrorState error={error instanceof Error ? error.message : 'Unknown error'} />;
   }
 
+  // Handle expense operations
+  const handleExpenseAdded = () => {
+    refetch();
+  };
+
+  const handleExpenseUpdated = () => {
+    refetch();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar currentTrip={trip} />
@@ -104,8 +113,8 @@ const TripDetail = () => {
               <div className="md:col-span-2 space-y-6">
                 <ExpensesView 
                   trip={trip} 
-                  onExpenseAdded={() => refetch()}
-                  onExpenseUpdated={() => refetch()}
+                  onExpenseAdded={handleExpenseAdded}
+                  onExpenseUpdated={handleExpenseUpdated}
                 />
               </div>
               <div className="space-y-6">

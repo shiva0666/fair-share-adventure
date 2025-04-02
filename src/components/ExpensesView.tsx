@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Trip, Expense } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { deleteExpense } from "@/services/tripService";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, getPaidByName } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -268,40 +270,42 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredExpenses.map(expense => (
-            <div key={expense.id} className="relative group">
-              <ExpenseItem
-                expense={expense}
-                participants={trip.participants}
-                onClick={() => setSelectedExpense(expense)}
-                currency={trip.currency}
-              />
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setEditingExpense(expense)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>Edit</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => setExpenseToDelete(expense.id)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash className="mr-2 h-4 w-4" />
-                      <span>Delete</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+        <ScrollArea className="h-[400px] pr-4">
+          <div className="space-y-4">
+            {filteredExpenses.map(expense => (
+              <div key={expense.id} className="relative group">
+                <ExpenseItem
+                  expense={expense}
+                  participants={trip.participants}
+                  onClick={() => setSelectedExpense(expense)}
+                  currency={trip.currency}
+                />
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingExpense(expense)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Edit</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setExpenseToDelete(expense.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </ScrollArea>
       )}
       
       {selectedExpense && (

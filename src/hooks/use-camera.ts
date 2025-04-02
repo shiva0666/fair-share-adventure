@@ -3,10 +3,13 @@ import { useState, useEffect } from 'react';
 
 export interface UseCameraReturn {
   hasCamera: boolean;
+  isPermissionGranted: boolean;
+  requestCameraPermission: () => Promise<boolean>;
 }
 
 export function useCamera(): UseCameraReturn {
   const [hasCamera, setHasCamera] = useState(false);
+  const [isPermissionGranted, setIsPermissionGranted] = useState(false);
 
   useEffect(() => {
     const checkCamera = async () => {
@@ -17,14 +20,19 @@ export function useCamera(): UseCameraReturn {
           return;
         }
         
-        // Try to access the camera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        // If successful, set hasCamera to true and release the camera
         setHasCamera(true);
-        // Release the camera by stopping all tracks
-        stream.getTracks().forEach(track => track.stop());
+        
+        // Check if permission is already granted
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          setIsPermissionGranted(true);
+          // Release the camera
+          stream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+          // Permission not granted or denied
+          setIsPermissionGranted(false);
+        }
       } catch (err) {
-        // If there's an error (no camera or permission denied), set hasCamera to false
         setHasCamera(false);
       }
     };
@@ -32,5 +40,21 @@ export function useCamera(): UseCameraReturn {
     checkCamera();
   }, []);
 
-  return { hasCamera };
+  const requestCameraPermission = async (): Promise<boolean> => {
+    if (!hasCamera) return false;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setIsPermissionGranted(true);
+      // Release the camera
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (err) {
+      console.error("Failed to get camera permission:", err);
+      setIsPermissionGranted(false);
+      return false;
+    }
+  };
+
+  return { hasCamera, isPermissionGranted, requestCameraPermission };
 }

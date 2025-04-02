@@ -26,7 +26,7 @@ export const Navbar = ({ tripName, currentTrip }: NavbarProps = {}) => {
     <header className="bg-background border-b sticky top-0 z-30">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/dashboard" className="text-xl font-semibold text-foreground">
-          DiviTrip
+          Splittos
         </Link>
         
         <div className="flex items-center space-x-4">

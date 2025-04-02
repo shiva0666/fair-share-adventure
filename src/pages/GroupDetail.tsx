@@ -35,7 +35,6 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/utils/expenseCalculator";
 
-// Create a type that mimics the Trip structure but with Group properties
 interface GroupAsTripType {
   id: string;
   name: string;
@@ -44,7 +43,6 @@ interface GroupAsTripType {
   status: 'active' | 'completed';
   createdAt: string;
   currency?: string;
-  // Adding missing Trip properties with placeholder values
   startDate: string;
   endDate: string;
 }
@@ -68,11 +66,10 @@ const GroupDetail = () => {
     return <ErrorState />;
   }
 
-  // Convert Group to a Trip-compatible object for components that expect Trip
   const groupAsTrip: GroupAsTripType = {
     ...group,
-    startDate: group.createdAt, // Use createdAt as startDate for calculations
-    endDate: new Date().toISOString(), // Use current date as endDate
+    startDate: group.createdAt,
+    endDate: new Date().toISOString(),
   };
 
   return (
@@ -177,7 +174,8 @@ const GroupSummary = ({ group }: { group: Group }) => {
   
   const handleDownloadReport = async () => {
     try {
-      // Implement this functionality similar to generateTripPDF
+      const { generateGroupPDF } = await import('@/utils/pdfGenerator');
+      await generateGroupPDF(group);
       toast({
         title: "Success",
         description: "Group expense report downloaded successfully",

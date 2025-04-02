@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -50,7 +49,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
   const { hasCamera } = useCamera();
   const { toast } = useToast();
 
-  // Initialize payer amounts
   useEffect(() => {
     if (paidByIds.length > 0) {
       const totalAmount = parseFloat(amount) || 0;
@@ -65,7 +63,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
     }
   }, [paidByIds, amount]);
 
-  // Initialize split amounts for equal splitting
   useEffect(() => {
     if (splitMethod === "equal" && splitBetween.length > 0) {
       const equalAmount = (parseFloat(amount) || 0) / splitBetween.length;
@@ -230,7 +227,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       return;
     }
 
-    // Validate payer amounts if there are multiple payers
     if (paidByIds.length > 1) {
       const totalPayerAmount = Object.values(payerAmounts).reduce((sum, amount) => sum + amount, 0);
       if (Math.abs(totalPayerAmount - parseFloat(amount)) > 0.01) {
@@ -252,7 +248,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       return;
     }
 
-    // Validate split amounts for custom split
     if (splitMethod === "custom") {
       const totalSplitAmount = Object.values(splitAmounts).reduce((sum, amount) => sum + amount, 0);
       if (Math.abs(totalSplitAmount - parseFloat(amount)) > 0.01) {
@@ -279,7 +274,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       amount: parseFloat(amount),
       category,
       name,
-      date: date.toISOString(),
+      date: date!.toISOString(),
       paidBy: paidByIds,
       payerAmounts: paidByIds.length > 1 ? formattedPayerAmounts : undefined,
       splitBetween,
@@ -291,29 +286,36 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
     };
     
     try {
-      const tripService = await import('@/services/tripService');
-      const createdExpense = await tripService.addExpense(trip.id, newExpense);
+      let createdExpense;
       
-      onExpenseAdded(createdExpense);
-      toast({
-        title: "Expense added",
-        description: "The expense has been successfully added",
-      });
-      onOpenChange(false);
+      if (window.location.pathname.includes('/groups/')) {
+        const groupService = await import('@/services/groupService');
+        createdExpense = await groupService.addExpense(trip.id, newExpense);
+      } else {
+        const tripService = await import('@/services/tripService');
+        createdExpense = await tripService.addExpense(trip.id, newExpense);
+      }
       
-      // Reset form
-      setAmount("");
-      setCategory("food");
-      setName("");
-      setDate(new Date());
-      setPaidByIds([trip.participants[0]?.id || ""]);
-      setPayerAmounts({});
-      setSplitBetween(trip.participants.map(p => p.id));
-      setSplitMethod("equal");
-      setSplitAmounts({});
-      setNotes("");
-      setFileAttachments([]);
-      
+      if (createdExpense) {
+        onExpenseAdded(createdExpense.expenses[createdExpense.expenses.length - 1]);
+        toast({
+          title: "Expense added",
+          description: "The expense has been successfully added",
+        });
+        onOpenChange(false);
+        
+        setAmount("");
+        setCategory("food");
+        setName("");
+        setDate(new Date());
+        setPaidByIds([trip.participants[0]?.id || ""]);
+        setPayerAmounts({});
+        setSplitBetween(trip.participants.map(p => p.id));
+        setSplitMethod("equal");
+        setSplitAmounts({});
+        setNotes("");
+        setFileAttachments([]);
+      }
     } catch (error) {
       console.error("Error creating expense:", error);
       toast({

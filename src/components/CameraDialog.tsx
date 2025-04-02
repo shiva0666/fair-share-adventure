@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCamera } from "@/hooks/use-camera";
-import { Camera, X } from "lucide-react";
+import { Camera, CameraOff, RefreshCw } from "lucide-react";
 
 interface CameraDialogProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [isLoading, setIsLoading] = useState(false);
   const { hasCamera, requestCameraPermission } = useCamera();
   const { toast } = useToast();
   
@@ -36,6 +37,7 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
     
     const startCamera = async () => {
       if (isOpen && videoRef.current) {
+        setIsLoading(true);
         try {
           // Request permission first
           const permissionGranted = await requestCameraPermission();
@@ -49,6 +51,8 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
             onClose();
             return;
           }
+          
+          console.log("Starting camera with facing mode:", facingMode);
           
           // Start the camera with the current facing mode
           mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -72,6 +76,8 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
             variant: "destructive",
           });
           onClose();
+        } finally {
+          setIsLoading(false);
         }
       }
     };
@@ -120,6 +126,42 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
     setFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user');
   };
 
+  const retryCamera = async () => {
+    if (stream) {
+      // Stop current stream
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+      setIsCameraActive(false);
+    }
+    
+    // Try with the same facing mode again
+    try {
+      setIsLoading(true);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 } 
+        } 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        setStream(mediaStream);
+        setIsCameraActive(true);
+      }
+    } catch (error) {
+      console.error("Error retrying camera:", error);
+      toast({
+        title: "Camera Error",
+        description: "Failed to restart the camera. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px]">
@@ -127,7 +169,11 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
           <DialogTitle>Take a Photo</DialogTitle>
         </DialogHeader>
         <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
-          {isCameraActive ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : isCameraActive ? (
             <video 
               ref={videoRef} 
               className="w-full h-full object-cover" 
@@ -136,8 +182,13 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
               muted
             />
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <Camera className="h-12 w-12 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center h-full">
+              <CameraOff className="h-12 w-12 text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">Camera not active</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={retryCamera}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry Camera
+              </Button>
             </div>
           )}
           <canvas ref={canvasRef} className="hidden" />
@@ -148,8 +199,9 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
               variant="outline" 
               size="icon" 
               onClick={toggleCamera}
-              disabled={!hasCamera || !isCameraActive}
+              disabled={!hasCamera || !isCameraActive || isLoading}
               className="mr-2"
+              title={facingMode === 'user' ? 'Switch to back camera' : 'Switch to front camera'}
             >
               <div className="rotate-90">
                 {facingMode === 'user' ? '📷' : '🤳'}
@@ -162,7 +214,7 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
             </Button>
             <Button 
               onClick={handleCapture}
-              disabled={!isCameraActive}
+              disabled={!isCameraActive || isLoading}
             >
               Capture
             </Button>

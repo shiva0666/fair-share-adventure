@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Trip, Expense } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,11 @@ import {
   Receipt,
   FileText,
   Download,
-  Eye
+  Eye,
+  CreditCard,
+  Tag,
+  Clock,
+  Info
 } from "lucide-react";
 import { ExpenseItem } from "@/components/ExpenseItem";
 import { AddExpenseDialog } from "@/components/AddExpenseDialog";
@@ -42,6 +47,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, getPaidByName } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { generateExpensePDF } from "@/utils/pdfGenerator";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 interface ExpensesViewProps {
   trip: Trip;
@@ -330,45 +337,124 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
       )}
       
       {selectedExpense && (
-        <div className="mt-6 p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">{selectedExpense.name}</h3>
-          {selectedExpense.description && (
-            <p className="text-sm text-muted-foreground mb-3">{selectedExpense.description}</p>
-          )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Amount</p>
-              <p className="font-medium">{formatCurrency(selectedExpense.amount, trip.currency)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Category</p>
-              <p className="font-medium capitalize">{selectedExpense.category}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Date</p>
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
-                <p className="font-medium">{formatDate(selectedExpense.date)}</p>
+        <Card className="mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xl flex items-center">
+              <span className="mr-2">{selectedExpense.name}</span>
+              <Badge className="ml-auto" variant="outline">{selectedExpense.category}</Badge>
+            </CardTitle>
+            {selectedExpense.description && selectedExpense.description !== selectedExpense.name && (
+              <CardDescription>{selectedExpense.description}</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Amount</p>
+                    <p className="text-xl font-semibold">{formatCurrency(selectedExpense.amount, trip.currency)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Date</p>
+                    <p>{formatDate(selectedExpense.date)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <Users className="h-5 w-5 mr-3 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Paid by</p>
+                    <p>{getPaidByName(selectedExpense.paidBy, trip.participants)}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <Tag className="h-5 w-5 mr-3 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Split method</p>
+                    <p className="capitalize">{selectedExpense.splitMethod || "Equal"}</p>
+                    <ul className="mt-2 space-y-1">
+                      {selectedExpense.splitBetween.map(participantId => {
+                        const participant = trip.participants.find(p => p.id === participantId);
+                        if (!participant) return null;
+                        
+                        let amount;
+                        if (selectedExpense.splitAmounts && selectedExpense.splitAmounts[participantId]) {
+                          amount = selectedExpense.splitAmounts[participantId];
+                        } else {
+                          amount = selectedExpense.amount / selectedExpense.splitBetween.length;
+                        }
+                        
+                        return (
+                          <li key={participantId} className="flex justify-between text-sm">
+                            <span>{participant.name}</span>
+                            <span>{formatCurrency(amount, trip.currency)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Paid by</p>
-              <div className="flex items-center">
-                <Users className="h-4 w-4 mr-1" />
-                <p className="font-medium">{getPaidByName(selectedExpense.paidBy, trip.participants)}</p>
+            
+            {selectedExpense.notes && (
+              <div className="mt-6">
+                <Separator className="mb-4" />
+                <div className="flex items-start">
+                  <Info className="h-5 w-5 mr-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-1">Notes</p>
+                    <p className="whitespace-pre-wrap">{selectedExpense.notes}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          
-          {selectedExpense.notes && (
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground mb-1">Notes</p>
-              <p className="text-sm">{selectedExpense.notes}</p>
-            </div>
-          )}
-          
-          <div className="flex justify-end gap-2 mt-4">
+            )}
+            
+            {selectedExpense.attachments && selectedExpense.attachments.length > 0 && (
+              <div className="mt-6">
+                <Separator className="mb-4" />
+                <p className="text-sm font-medium text-foreground mb-3">Attachments</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {selectedExpense.attachments.map((attachment, index) => (
+                    <a 
+                      key={index}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      {attachment.fileType.startsWith('image/') ? (
+                        <div className="aspect-square rounded-md overflow-hidden border hover:opacity-90 transition-opacity">
+                          <img 
+                            src={attachment.thumbnailUrl || attachment.fileUrl}
+                            alt={attachment.filename}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="aspect-square rounded-md overflow-hidden border hover:opacity-90 transition-opacity flex flex-col items-center justify-center p-4">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                          <p className="text-xs text-center mt-2 truncate max-w-full">
+                            {attachment.filename}
+                          </p>
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-end gap-3 pt-2">
             <Button 
               variant="outline" 
               size="sm" 
@@ -382,7 +468,7 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
               onClick={() => handleDownloadExpense(selectedExpense)}
             >
               <Download className="h-4 w-4 mr-1" />
-              Download
+              Download as PDF
             </Button>
             <Button 
               variant="outline" 
@@ -392,8 +478,8 @@ export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated
               <Edit className="h-4 w-4 mr-1" />
               Edit
             </Button>
-          </div>
-        </div>
+          </CardFooter>
+        </Card>
       )}
       
       <ConfirmationDialog

@@ -62,12 +62,12 @@ export function Sidebar({ className }: SidebarProps) {
       path: "/dashboard",
     },
     {
-      name: `Your Trips ${activeTripsCount > 0 ? `(${activeTripsCount})` : ''}`,
+      name: `Your Recent Trips ${activeTripsCount > 0 ? `(${activeTripsCount})` : ''}`,
       icon: <Map className="h-5 w-5" />,
       path: "/trips",
     },
     {
-      name: `Your Groups ${activeGroupsCount > 0 ? `(${activeGroupsCount})` : ''}`,
+      name: `Your Recent Groups ${activeGroupsCount > 0 ? `(${activeGroupsCount})` : ''}`,
       icon: <Users className="h-5 w-5" />,
       path: "/groups",
     },
@@ -118,7 +118,7 @@ export function Sidebar({ className }: SidebarProps) {
           )}
         >
           <div className="flex h-14 items-center justify-between px-4 border-b border-sidebar-border">
-            <h2 className="text-xl font-semibold text-sidebar-foreground">DiviTrip</h2>
+            <h2 className="text-xl font-semibold text-sidebar-foreground">Splittos</h2>
             <Button
               variant="ghost"
               size="icon"
@@ -163,7 +163,7 @@ export function Sidebar({ className }: SidebarProps) {
     >
       <div className="flex h-14 items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && (
-          <h2 className="text-xl font-semibold text-sidebar-foreground">DiviTrip</h2>
+          <h2 className="text-xl font-semibold text-sidebar-foreground">Splittos</h2>
         )}
         <Button
           variant="ghost"

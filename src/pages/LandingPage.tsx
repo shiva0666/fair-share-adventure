@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ const LandingPage = () => {
               Split Expenses with Friends, <span className="text-yellow-300">Hassle-Free</span>
             </h1>
             <p className="text-xl md:text-2xl mb-10 text-gray-100 animate-fade-in">
-              DiviTrip makes sharing expenses on trips simple and fair for everyone. No more awkward money conversations.
+              Splittos makes sharing expenses on trips simple and fair for everyone. No more awkward money conversations.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
               <Link to="/login">
@@ -46,7 +45,7 @@ const LandingPage = () => {
       {/* Features Section */}
       <section id="features" className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">Why Choose DiviTrip?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">Why Choose Splittos?</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-card hover:shadow-lg transition-shadow duration-300 rounded-xl p-6 hover-scale">
@@ -133,7 +132,7 @@ const LandingPage = () => {
       {/* How It Works Section */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">How DiviTrip Works</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">How Splittos Works</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="text-center">
@@ -192,7 +191,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-2xl font-bold text-white mb-4">DiviTrip</h3>
+              <h3 className="text-2xl font-bold text-white mb-4">Splittos</h3>
               <p className="mb-4">Making group expenses fair and simple since 2023.</p>
             </div>
             
@@ -228,7 +227,7 @@ const LandingPage = () => {
           </div>
           
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-sm">
-            <p>© 2023 DiviTrip. All rights reserved.</p>
+            <p>© 2023 Splittos. All rights reserved.</p>
           </div>
         </div>
       </footer>

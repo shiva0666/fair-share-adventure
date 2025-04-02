@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -48,7 +47,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if the browser supports the MediaDevices API
     setIsCameraSupported(!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
   }, []);
 
@@ -161,7 +159,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       }));
     }
   };
-  
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -210,6 +208,8 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       splitAmounts: formattedSplitAmounts,
       notes: notes.trim() || undefined,
       attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
+      description: name,
+      splitMethod: splitMethod === "equal" ? "equal" : "custom"
     };
     
     try {
@@ -223,7 +223,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       });
       onOpenChange(false);
       
-      // Reset form fields
       setAmount("");
       setCategory("food");
       setName("");
@@ -260,7 +259,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       filename: `Photo ${new Date().toLocaleString()}`,
       fileUrl: imageDataURL,
       fileType: 'image/jpeg',
-      fileSize: 0, // We don't know exact size for captured images
+      fileSize: 0,
       thumbnailUrl: imageDataURL,
       uploadedAt: timestamp
     };

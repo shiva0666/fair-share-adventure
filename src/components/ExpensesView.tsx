@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Trip, Expense } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -44,9 +45,11 @@ import { formatDate, getPaidByName } from "@/lib/utils";
 interface ExpensesViewProps {
   trip: Trip;
   onRefresh?: () => Promise<any>;
+  onExpenseAdded?: () => void;
+  onExpenseUpdated?: () => void;
 }
 
-export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
+export function ExpensesView({ trip, onRefresh, onExpenseAdded, onExpenseUpdated }: ExpensesViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"date" | "amount" | "name">("date");
@@ -60,14 +63,18 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
 
   const handleExpenseAdded = () => {
     setIsAddExpenseDialogOpen(false);
-    if (onRefresh) {
+    if (onExpenseAdded) {
+      onExpenseAdded();
+    } else if (onRefresh) {
       onRefresh();
     }
   };
   
   const handleExpenseUpdated = () => {
     setEditingExpense(null);
-    if (onRefresh) {
+    if (onExpenseUpdated) {
+      onExpenseUpdated();
+    } else if (onRefresh) {
       onRefresh();
     }
   };
@@ -225,7 +232,7 @@ export function ExpensesView({ trip, onRefresh }: ExpensesViewProps) {
       {isAddExpenseDialogOpen && (
         <AddExpenseDialog
           trip={trip}
-          isOpen={isAddExpenseDialogOpen}
+          open={isAddExpenseDialogOpen}
           onOpenChange={setIsAddExpenseDialogOpen}
           onExpenseAdded={handleExpenseAdded}
         />

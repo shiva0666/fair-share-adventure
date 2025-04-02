@@ -1,7 +1,11 @@
 
 import { useState, useEffect } from 'react';
 
-export function useCamera() {
+export interface UseCameraReturn {
+  hasCamera: boolean;
+}
+
+export function useCamera(): UseCameraReturn {
   const [hasCamera, setHasCamera] = useState(false);
 
   useEffect(() => {

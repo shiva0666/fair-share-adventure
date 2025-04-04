@@ -110,6 +110,9 @@ export const CameraDialog: React.FC<CameraDialogProps> = ({
         // Convert canvas to data URL and pass to callback
         const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
         onCapture(imageDataURL);
+        
+        // Close the dialog after capture
+        onClose();
       }
     }
   };

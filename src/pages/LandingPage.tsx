@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ const LandingPage = () => {
             <CarouselContent>
               <CarouselItem>
                 <div className="bg-card p-8 rounded-xl shadow-sm">
-                  <p className="text-lg italic mb-6">"DiviTrip saved our friendship! After our trip to Europe, settling expenses was a breeze instead of a nightmare."</p>
+                  <p className="text-lg italic mb-6">"Splittos saved our friendship! After our trip to Europe, settling expenses was a breeze instead of a nightmare."</p>
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold">JD</div>
                     <div className="ml-4">
@@ -97,7 +98,7 @@ const LandingPage = () => {
               
               <CarouselItem>
                 <div className="bg-card p-8 rounded-xl shadow-sm">
-                  <p className="text-lg italic mb-6">"The custom split feature is amazing! Some friends ordered expensive drinks while others stayed sober, and DiviTrip made it fair for everyone."</p>
+                  <p className="text-lg italic mb-6">"The custom split feature is amazing! Some friends ordered expensive drinks while others stayed sober, and Splittos made it fair for everyone."</p>
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold">SK</div>
                     <div className="ml-4">
@@ -110,7 +111,7 @@ const LandingPage = () => {
               
               <CarouselItem>
                 <div className="bg-card p-8 rounded-xl shadow-sm">
-                  <p className="text-lg italic mb-6">"I organize trips for large groups and DiviTrip has become essential. The email reports feature helps everyone keep track of their expenses."</p>
+                  <p className="text-lg italic mb-6">"I organize trips for large groups and Splittos has become essential. The email reports feature helps everyone keep track of their expenses."</p>
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold">MT</div>
                     <div className="ml-4">

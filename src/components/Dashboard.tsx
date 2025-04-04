@@ -21,11 +21,14 @@ export default function Dashboard() {
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
   const [activeGroupTab, setActiveGroupTab] = useState("all");
   const [filteredGroups, setFilteredGroups] = useState<Group[]>([]);
+  const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
+  const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
   
   const {
     data: trips,
     isLoading: isTripsLoading,
     error: tripsError,
+    refetch: refetchTrips,
   } = useQuery({
     queryKey: ["trips"],
     queryFn: getAllTrips,
@@ -35,6 +38,7 @@ export default function Dashboard() {
     data: groups,
     isLoading: isGroupsLoading,
     error: groupsError,
+    refetch: refetchGroups,
   } = useQuery({
     queryKey: ["groups"],
     queryFn: getAllGroups,
@@ -131,6 +135,16 @@ export default function Dashboard() {
       }));
     }
   };
+
+  const handleTripCreated = () => {
+    refetchTrips();
+    setShowCreateTripDialog(false);
+  };
+
+  const handleGroupCreated = () => {
+    refetchGroups();
+    setShowCreateGroupDialog(false);
+  };
   
   const isLoading = isTripsLoading || isSummaryLoading || isGroupsLoading || isGroupStatsLoading;
   const hasError = tripsError || summaryError || groupsError;
@@ -195,15 +209,27 @@ export default function Dashboard() {
           </TabsList>
           
           <TabsContent value="all" className="mt-0">
-            <TripsGrid trips={filteredTrips} loading={isLoading} />
+            <TripsGrid 
+              trips={filteredTrips} 
+              loading={isLoading} 
+              onCreateTrip={() => setShowCreateTripDialog(true)}
+            />
           </TabsContent>
           
           <TabsContent value="active" className="mt-0">
-            <TripsGrid trips={filteredTrips} loading={isLoading} />
+            <TripsGrid 
+              trips={filteredTrips} 
+              loading={isLoading} 
+              onCreateTrip={() => setShowCreateTripDialog(true)}
+            />
           </TabsContent>
           
           <TabsContent value="completed" className="mt-0">
-            <TripsGrid trips={filteredTrips} loading={isLoading} />
+            <TripsGrid 
+              trips={filteredTrips} 
+              loading={isLoading} 
+              onCreateTrip={() => setShowCreateTripDialog(true)}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -247,6 +273,7 @@ export default function Dashboard() {
               loading={isLoading} 
               onDelete={handleDeleteGroup}
               onComplete={handleCompleteGroup}
+              onCreateGroup={() => setShowCreateGroupDialog(true)}
             />
           </TabsContent>
           
@@ -256,6 +283,7 @@ export default function Dashboard() {
               loading={isLoading} 
               onDelete={handleDeleteGroup}
               onComplete={handleCompleteGroup}
+              onCreateGroup={() => setShowCreateGroupDialog(true)}
             />
           </TabsContent>
           
@@ -265,10 +293,23 @@ export default function Dashboard() {
               loading={isLoading} 
               onDelete={handleDeleteGroup}
               onComplete={handleCompleteGroup}
+              onCreateGroup={() => setShowCreateGroupDialog(true)}
             />
           </TabsContent>
         </Tabs>
       </div>
+
+      <CreateTripDialog
+        open={showCreateTripDialog}
+        onClose={() => setShowCreateTripDialog(false)}
+        onTripsCreated={handleTripCreated}
+      />
+
+      <CreateGroupDialog
+        open={showCreateGroupDialog}
+        onClose={() => setShowCreateGroupDialog(false)}
+        onGroupCreated={handleGroupCreated}
+      />
     </div>
   );
 }
@@ -324,9 +365,10 @@ function SummaryCardsSkeleton() {
 interface TripsGridProps {
   trips: Trip[] | undefined;
   loading: boolean;
+  onCreateTrip: () => void;
 }
 
-function TripsGrid({ trips, loading }: TripsGridProps) {
+function TripsGrid({ trips, loading, onCreateTrip }: TripsGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -344,11 +386,12 @@ function TripsGrid({ trips, loading }: TripsGridProps) {
         <p className="text-muted-foreground mb-6">
           Get started by creating your first trip!
         </p>
-        <CreateTripDialog>
-          <button className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-            Create Your First Trip
-          </button>
-        </CreateTripDialog>
+        <button 
+          onClick={onCreateTrip}
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Create Your First Trip
+        </button>
       </div>
     );
   }
@@ -358,7 +401,7 @@ function TripsGrid({ trips, loading }: TripsGridProps) {
       {trips.map((trip) => (
         <TripCard key={trip.id} trip={trip} />
       ))}
-      <CreateTripCard />
+      <CreateTripCard onCreateTrip={onCreateTrip} />
     </div>
   );
 }
@@ -429,16 +472,25 @@ function TripCard({ trip }: TripCardProps) {
   );
 }
 
-function CreateTripCard() {
+interface CreateTripCardProps {
+  onCreateTrip: () => void;
+}
+
+function CreateTripCard({ onCreateTrip }: CreateTripCardProps) {
   return (
-    <Card className="border-dashed hover:border-primary/50 transition-colors">
+    <Card className="border-dashed hover:border-primary/50 transition-colors cursor-pointer" onClick={onCreateTrip}>
       <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
         <div className="py-8">
           <h3 className="font-medium mb-2">Create New Trip</h3>
           <p className="text-sm text-muted-foreground mb-6">
             Plan a new adventure with friends
           </p>
-          <CreateTripDialog />
+          <button 
+            onClick={onCreateTrip}
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Create Trip
+          </button>
         </div>
       </CardContent>
     </Card>
@@ -450,9 +502,10 @@ interface GroupsGridProps {
   loading: boolean;
   onDelete: (id: string) => void;
   onComplete: (id: string) => void;
+  onCreateGroup: () => void;
 }
 
-function GroupsGrid({ groups, loading, onDelete, onComplete }: GroupsGridProps) {
+function GroupsGrid({ groups, loading, onDelete, onComplete, onCreateGroup }: GroupsGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -470,11 +523,12 @@ function GroupsGrid({ groups, loading, onDelete, onComplete }: GroupsGridProps) 
         <p className="text-muted-foreground mb-6">
           Get started by creating your first group!
         </p>
-        <CreateGroupDialog>
-          <button className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-            Create Your First Group
-          </button>
-        </CreateGroupDialog>
+        <button 
+          onClick={onCreateGroup}
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Create Your First Group
+        </button>
       </div>
     );
   }
@@ -489,21 +543,30 @@ function GroupsGrid({ groups, loading, onDelete, onComplete }: GroupsGridProps) 
           onComplete={onComplete}
         />
       ))}
-      <CreateGroupCard />
+      <CreateGroupCard onCreateGroup={onCreateGroup} />
     </div>
   );
 }
 
-function CreateGroupCard() {
+interface CreateGroupCardProps {
+  onCreateGroup: () => void;
+}
+
+function CreateGroupCard({ onCreateGroup }: CreateGroupCardProps) {
   return (
-    <Card className="border-dashed hover:border-primary/50 transition-colors">
+    <Card className="border-dashed hover:border-primary/50 transition-colors cursor-pointer" onClick={onCreateGroup}>
       <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
         <div className="py-8">
           <h3 className="font-medium mb-2">Create New Group</h3>
           <p className="text-sm text-muted-foreground mb-6">
             Manage expenses with recurring participants
           </p>
-          <CreateGroupDialog />
+          <button 
+            onClick={onCreateGroup}
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Create Group
+          </button>
         </div>
       </CardContent>
     </Card>

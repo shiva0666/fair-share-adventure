@@ -23,12 +23,14 @@ interface CreateGroupDialogProps {
   open: boolean;
   onClose: () => void;
   onGroupCreated: () => void;
+  children?: React.ReactNode;
 }
 
 export function CreateGroupDialog({
   open,
   onClose,
   onGroupCreated,
+  children,
 }: CreateGroupDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -53,7 +55,7 @@ export function CreateGroupDialog({
     if (user && participants.length === 0) {
       setParticipants([
         {
-          name: user.displayName || 'Me',
+          name: user.name || 'Me',
           email: user.email || undefined,
           phone: user.phoneNumber || undefined
         }
@@ -98,6 +100,7 @@ export function CreateGroupDialog({
         description,
         currency,
         participants: participants as any, // API will handle ID assignment
+        status: 'active', // Adding the status field
       });
 
       toast({
@@ -122,6 +125,94 @@ export function CreateGroupDialog({
   const currencyOptions: SupportedCurrency[] = [
     "USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "CNY", "SGD", "AED"
   ];
+
+  // If children are provided, render them as the trigger
+  if (children) {
+    return (
+      <>
+        <Dialog open={open} onOpenChange={onClose}>
+          {React.cloneElement(children as React.ReactElement, {
+            onClick: () => {
+              if ((children as React.ReactElement).props.onClick) {
+                (children as React.ReactElement).props.onClick();
+              }
+            }
+          })}
+          <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Group</DialogTitle>
+              <DialogDescription>
+                Add a new group to track shared expenses.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-6 py-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Group Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="E.g., Apartment, Book Club"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Input
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Briefly describe the purpose of this group"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select value={currency} onValueChange={value => setCurrency(value as SupportedCurrency)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyOptions.map((curr) => (
+                        <SelectItem key={curr} value={curr}>
+                          {curr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-medium">Participants</Label>
+                  {participants.length > 0 && (
+                    <ParticipantList
+                      participants={participants}
+                      onRemoveParticipant={handleRemoveParticipant}
+                    />
+                  )}
+                  
+                  <div className="pt-2 border-t mt-4">
+                    <Label className="text-sm font-medium">Add New Participant</Label>
+                    <AddParticipantForm onAddParticipant={handleAddParticipant} />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "Create Group"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

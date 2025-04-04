@@ -28,12 +28,14 @@ interface CreateTripDialogProps {
   open: boolean;
   onClose: () => void;
   onTripsCreated: () => void;
+  children?: React.ReactNode;
 }
 
 export function CreateTripDialog({
   open,
   onClose,
   onTripsCreated,
+  children,
 }: CreateTripDialogProps) {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
@@ -62,7 +64,7 @@ export function CreateTripDialog({
     if (user && participants.length === 0) {
       setParticipants([
         {
-          name: user.displayName || 'Me',
+          name: user.name || 'Me',
           email: user.email || undefined,
           phone: user.phoneNumber || undefined
         }
@@ -117,6 +119,7 @@ export function CreateTripDialog({
         endDate: endDate.toISOString(),
         currency,
         participants: participants as any, // API will handle ID assignment
+        status: 'active', // Add the status field
       });
 
       toast({
@@ -141,6 +144,141 @@ export function CreateTripDialog({
   const currencyOptions: SupportedCurrency[] = [
     "USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "CNY", "SGD", "AED"
   ];
+
+  // If children are provided, render them as the trigger
+  if (children) {
+    return (
+      <>
+        <Dialog open={open} onOpenChange={onClose}>
+          {React.cloneElement(children as React.ReactElement, {
+            onClick: () => {
+              if ((children as React.ReactElement).props.onClick) {
+                (children as React.ReactElement).props.onClick();
+              }
+            }
+          })}
+          <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Trip</DialogTitle>
+              <DialogDescription>
+                Add a new trip to track your expenses with others.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-6 py-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Trip Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="E.g., Beach Vacation, Paris Trip"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !startDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>End Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !endDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          disabled={(date) =>
+                            startDate ? date < startDate : false
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select value={currency} onValueChange={value => setCurrency(value as SupportedCurrency)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyOptions.map((curr) => (
+                        <SelectItem key={curr} value={curr}>
+                          {curr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-medium">Participants</Label>
+                  {participants.length > 0 && (
+                    <ParticipantList
+                      participants={participants}
+                      onRemoveParticipant={handleRemoveParticipant}
+                    />
+                  )}
+                  
+                  <div className="pt-2 border-t mt-4">
+                    <Label className="text-sm font-medium">Add New Participant</Label>
+                    <AddParticipantForm onAddParticipant={handleAddParticipant} />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "Create Trip"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

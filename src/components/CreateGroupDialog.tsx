@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,14 +13,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Participant, SupportedCurrency } from "@/types";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
-import { useQueryClient } from "@tanstack/react-query";
-import { createGroup } from "@/services/groupService";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { createGroup, getAllGroups } from "@/services/groupService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ParticipantSelector } from "./ParticipantSelector";
 
 interface CreateGroupDialogProps {
   children?: React.ReactNode;
@@ -43,8 +44,32 @@ export function CreateGroupDialog({ children, open, onClose, onGroupCreated }: C
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch previous participants from existing groups
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: getAllGroups,
+  });
+
+  // Extract unique participants from all groups
+  const previousParticipants = React.useMemo(() => {
+    const allParticipants: Omit<Participant, 'balance'>[] = [];
+    const participantIds = new Set<string>();
+    
+    groups.forEach(group => {
+      group.participants.forEach(participant => {
+        if (!participantIds.has(participant.id)) {
+          participantIds.add(participant.id);
+          const { balance, ...participantWithoutBalance } = participant;
+          allParticipants.push(participantWithoutBalance);
+        }
+      });
+    });
+    
+    return allParticipants;
+  }, [groups]);
+
   // Handle external open state changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (open !== undefined) {
       setIsOpen(open);
     }
@@ -56,35 +81,6 @@ export function CreateGroupDialog({ children, open, onClose, onGroupCreated }: C
     if (!newOpen && onClose) {
       onClose();
     }
-  };
-
-  const handleAddParticipant = () => {
-    setParticipants([...participants, { id: uuidv4(), name: "" }]);
-  };
-
-  const handleRemoveParticipant = (id: string) => {
-    if (participants.length > 1) {
-      setParticipants(participants.filter((p) => p.id !== id));
-      if (showDetailsForParticipant === id) {
-        setShowDetailsForParticipant(null);
-      }
-    } else {
-      toast({
-        title: "Cannot remove",
-        description: "A group needs at least one participant",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleParticipantChange = (id: string, field: keyof Omit<Participant, 'balance'>, value: string) => {
-    setParticipants(
-      participants.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
-  };
-
-  const toggleParticipantDetails = (id: string) => {
-    setShowDetailsForParticipant(showDetailsForParticipant === id ? null : id);
   };
 
   const handleSubmit = async () => {
@@ -123,6 +119,19 @@ export function CreateGroupDialog({ children, open, onClose, onGroupCreated }: C
         description: description.trim() || undefined,
         participants: participantsWithBalance,
         currency,
+      });
+
+      // Send invitations to participants with email or phone
+      validParticipants.forEach(participant => {
+        if (participant.email) {
+          console.log(`Sending email invitation to ${participant.email}`);
+          // In a real app, this would call an API to send the email
+        }
+        
+        if (participant.phone) {
+          console.log(`Sending SMS invitation to ${participant.phone}`);
+          // In a real app, this would call an API to send the SMS
+        }
       });
       
       // Invalidate queries to refresh the UI
@@ -170,7 +179,7 @@ export function CreateGroupDialog({ children, open, onClose, onGroupCreated }: C
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Group</DialogTitle>
           <DialogDescription>
@@ -211,73 +220,14 @@ export function CreateGroupDialog({ children, open, onClose, onGroupCreated }: C
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label>Participants</Label>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={handleAddParticipant}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
-            </div>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto py-2">
-              {participants.map((participant, index) => (
-                <Collapsible 
-                  key={participant.id} 
-                  open={showDetailsForParticipant === participant.id}
-                  onOpenChange={() => toggleParticipantDetails(participant.id)}
-                  className="border rounded-md p-2"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Input
-                      placeholder={`Participant ${index + 1}`}
-                      value={participant.name || ""}
-                      onChange={(e) => handleParticipantChange(participant.id, "name", e.target.value)}
-                    />
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="icon" type="button">
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveParticipant(participant.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <CollapsibleContent className="space-y-2 mt-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor={`email-${participant.id}`}>Email (Optional)</Label>
-                      <Input
-                        id={`email-${participant.id}`}
-                        type="email"
-                        placeholder="Email address"
-                        value={participant.email || ""}
-                        onChange={(e) => handleParticipantChange(participant.id, "email", e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor={`phone-${participant.id}`}>Phone (Optional)</Label>
-                      <Input
-                        id={`phone-${participant.id}`}
-                        type="tel"
-                        placeholder="Phone number"
-                        value={participant.phone || ""}
-                        onChange={(e) => handleParticipantChange(participant.id, "phone", e.target.value)}
-                      />
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
-            </div>
-          </div>
+          
+          <ParticipantSelector
+            participants={participants}
+            setParticipants={setParticipants}
+            showDetailsForParticipant={showDetailsForParticipant}
+            setShowDetailsForParticipant={setShowDetailsForParticipant}
+            previousParticipants={previousParticipants}
+          />
         </div>
         <DialogFooter>
           <Button 

@@ -1,16 +1,9 @@
 
-import React from "react";
+import { useState } from "react";
 import { Group } from "@/types";
-import { GroupCard } from "./GroupCard";
-import { MoreHorizontal, Edit, Check, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { GroupCard } from "@/components/GroupCard";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface GroupsListProps {
@@ -20,74 +13,129 @@ interface GroupsListProps {
 }
 
 export function GroupsList({ groups, onDeleteGroup, onCompleteGroup }: GroupsListProps) {
+  const [filteredGroups, setFilteredGroups] = useState<Group[]>(groups);
+  const [currentPage, setCurrentPage] = useState(1);
+  const groupsPerPage = 6;
   const { toast } = useToast();
-  
-  if (groups.length === 0) {
-    return (
-      <div className="text-center p-8 rounded-lg border border-dashed">
-        <h3 className="text-lg font-medium mb-2">No groups found</h3>
-        <p className="text-muted-foreground">
-          Create your first group to start tracking shared expenses!
-        </p>
-      </div>
-    );
-  }
-  
-  // Sort by status (active first) and then by date (newest first)
-  const sortedGroups = [...groups].sort((a, b) => {
-    if (a.status !== b.status) {
-      return a.status === "active" ? -1 : 1;
+
+  // Confirmation dialogs state
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
+
+  // Calculate pagination
+  const indexOfLastGroup = currentPage * groupsPerPage;
+  const indexOfFirstGroup = indexOfLastGroup - groupsPerPage;
+  const currentGroups = filteredGroups.slice(indexOfFirstGroup, indexOfLastGroup);
+  const totalPages = Math.ceil(filteredGroups.length / groupsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Handle delete confirmation
+  const handleDelete = (id: string) => {
+    setSelectedGroupId(id);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedGroupId) {
+      onDeleteGroup(selectedGroupId);
+      setShowDeleteConfirmation(false);
+      setSelectedGroupId(null);
     }
-    return new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime();
-  });
-  
-  const handleEdit = (groupId: string) => {
-    // Navigate to group details
-    window.location.href = `/groups/${groupId}`;
   };
-  
-  const handleMarkCompleted = (groupId: string) => {
-    onCompleteGroup(groupId);
-    toast({
-      title: "Group marked as completed",
-      description: "The group has been marked as completed successfully.",
-    });
+
+  // Handle complete confirmation
+  const handleComplete = (id: string) => {
+    setSelectedGroupId(id);
+    setShowCompleteConfirmation(true);
   };
-  
+
+  const handleCompleteConfirm = () => {
+    if (selectedGroupId) {
+      onCompleteGroup(selectedGroupId);
+      setShowCompleteConfirmation(false);
+      setSelectedGroupId(null);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {sortedGroups.map((group) => (
-        <div key={group.id} className="relative">
-          <GroupCard group={group} />
-          <div className="absolute top-2 right-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More options">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => handleEdit(group.id)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Group
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleMarkCompleted(group.id)}>
-                  <Check className="mr-2 h-4 w-4" />
-                  Mark as Completed
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => onDeleteGroup(group.id)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Group
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    <div className="space-y-6">
+      {filteredGroups.length === 0 ? (
+        <div className="text-center py-12 bg-muted/50 rounded-lg">
+          <h3 className="text-lg font-medium">No groups found</h3>
+          <p className="text-muted-foreground mt-1">Create a new group to get started.</p>
         </div>
-      ))}
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {currentGroups.map((group) => (
+              <GroupCard 
+                key={group.id} 
+                group={group} 
+                onDelete={() => handleDelete(group.id)} 
+                onComplete={() => handleComplete(group.id)} 
+              />
+            ))}
+          </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination className="mt-8">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => handlePageChange(Math.max(1, currentPage - 1))} 
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <PaginationItem key={i}>
+                    <PaginationLink
+                      isActive={currentPage === i + 1}
+                      onClick={() => handlePageChange(i + 1)}
+                    >
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} 
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+
+          {/* Confirmation Dialogs */}
+          <ConfirmationDialog
+            isOpen={showDeleteConfirmation}
+            onClose={() => setShowDeleteConfirmation(false)}
+            onConfirm={handleDeleteConfirm}
+            title="Delete Group"
+            description="Are you sure you want to delete this group? This action can't be undone."
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+          />
+
+          <ConfirmationDialog
+            isOpen={showCompleteConfirmation}
+            onClose={() => setShowCompleteConfirmation(false)}
+            onConfirm={handleCompleteConfirm}
+            title="Complete Group"
+            description="Are you sure you want to mark this group as completed? This will archive the group."
+            confirmLabel="Complete"
+            cancelLabel="Cancel"
+          />
+        </>
+      )}
     </div>
   );
 }

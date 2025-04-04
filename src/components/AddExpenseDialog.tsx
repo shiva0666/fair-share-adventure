@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -18,11 +19,9 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Expense, Participant, Trip, ExpenseAttachment, ExpenseCategory } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
-import { Camera, X, FileIcon } from "lucide-react";
-import { CameraDialog } from "./CameraDialog";
+import { X, FileIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/expenseCalculator";
-import { useCamera } from "@/hooks/use-camera";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AddExpenseDialogProps {
@@ -44,9 +43,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
   const [splitAmounts, setSplitAmounts] = useState<{ [participantId: string]: number }>({});
   const [notes, setNotes] = useState("");
   const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>([]);
-  const [showCamera, setShowCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { hasCamera } = useCamera();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -326,30 +323,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
     }
   };
 
-  const handleCameraClick = () => {
-    if (hasCamera) {
-      setShowCamera(true);
-    } else if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleCapture = (imageDataURL: string) => {
-    const timestamp = new Date().toISOString();
-    const newAttachment: ExpenseAttachment = {
-      id: `camera-${timestamp}`,
-      filename: `Photo ${new Date().toLocaleString()}`,
-      fileUrl: imageDataURL,
-      fileType: 'image/jpeg',
-      fileSize: 0,
-      thumbnailUrl: imageDataURL,
-      uploadedAt: timestamp
-    };
-    
-    setFileAttachments(prev => [...prev, newAttachment]);
-    setShowCamera(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
@@ -576,10 +549,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
                 <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
                   Add Attachment
                 </Button>
-                <Button type="button" variant="outline" onClick={handleCameraClick}>
-                  <Camera className="mr-2 h-4 w-4" />
-                  Take Photo
-                </Button>
                 {fileAttachments.length > 0 && (
                   <span className="text-sm text-muted-foreground">
                     {fileAttachments.length} file(s) attached
@@ -646,11 +615,6 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
           </Button>
         </DialogFooter>
       </DialogContent>
-      <CameraDialog
-        isOpen={showCamera}
-        onClose={() => setShowCamera(false)}
-        onCapture={handleCapture}
-      />
     </Dialog>
   );
 };

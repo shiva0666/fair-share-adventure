@@ -1,11 +1,11 @@
 
 import { useState } from "react";
-import { TripCard } from "@/components/TripCard";
 import { Trip } from "@/types";
-import { TripSearch } from "@/components/TripSearch";
+import { TripCard } from "@/components/TripCard";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
-import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface TripsListProps {
   trips: Trip[];
@@ -15,16 +15,27 @@ interface TripsListProps {
 
 export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProps) {
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>(trips);
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const tripsPerPage = 6;
-  const { toast } = useToast();
 
   // Confirmation dialogs state
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [showFinalDeleteConfirmation, setShowFinalDeleteConfirmation] = useState(false);
   const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
-  const [showFinalCompleteConfirmation, setShowFinalCompleteConfirmation] = useState(false);
+
+  // Filter trips by search term
+  const filterTrips = (term: string) => {
+    const filtered = trips.filter(
+      (trip) =>
+        trip.name.toLowerCase().includes(term.toLowerCase()) ||
+        trip.participants.some((p) =>
+          p.name.toLowerCase().includes(term.toLowerCase())
+        )
+    );
+    setFilteredTrips(filtered);
+    setCurrentPage(1); // Reset to first page
+  };
 
   // Calculate pagination
   const indexOfLastTrip = currentPage * tripsPerPage;
@@ -37,60 +48,57 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Handle delete confirmation
-  const handleDeleteInitial = (id: string) => {
-    setSelectedTripId(id);
-    setShowDeleteConfirmation(true);
+  // Handle search
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    filterTrips(term);
   };
 
-  const handleDeleteSecondary = () => {
-    setShowDeleteConfirmation(false);
-    setShowFinalDeleteConfirmation(true);
+  // Handle delete confirmation
+  const handleDelete = (id: string) => {
+    setSelectedTripId(id);
+    setShowDeleteConfirmation(true);
   };
 
   const handleDeleteConfirm = () => {
     if (selectedTripId) {
       onDeleteTrip(selectedTripId);
-      toast({
-        title: "Trip deleted",
-        description: "The trip has been permanently deleted.",
-      });
-      setShowFinalDeleteConfirmation(false);
+      setShowDeleteConfirmation(false);
       setSelectedTripId(null);
     }
   };
 
   // Handle complete confirmation
-  const handleCompleteInitial = (id: string) => {
+  const handleComplete = (id: string) => {
     setSelectedTripId(id);
     setShowCompleteConfirmation(true);
-  };
-
-  const handleCompleteSecondary = () => {
-    setShowCompleteConfirmation(false);
-    setShowFinalCompleteConfirmation(true);
   };
 
   const handleCompleteConfirm = () => {
     if (selectedTripId) {
       onCompleteTrip(selectedTripId);
-      toast({
-        title: "Trip complete",
-        description: "The trip has been marked as completed.",
-      });
-      setShowFinalCompleteConfirmation(false);
+      setShowCompleteConfirmation(false);
       setSelectedTripId(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      <TripSearch onTripsFound={setFilteredTrips} />
-      
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="Search trips or participants..."
+          value={searchTerm}
+          onChange={handleSearch}
+          className="pl-10"
+        />
+      </div>
+
       {filteredTrips.length === 0 ? (
         <div className="text-center py-12 bg-muted/50 rounded-lg">
           <h3 className="text-lg font-medium">No trips found</h3>
-          <p className="text-muted-foreground mt-1">Try adjusting your search criteria.</p>
+          <p className="text-muted-foreground mt-1">Create a new trip to get started or adjust your search.</p>
         </div>
       ) : (
         <>
@@ -99,8 +107,8 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
               <TripCard 
                 key={trip.id} 
                 trip={trip} 
-                onDelete={() => handleDeleteInitial(trip.id)} 
-                onComplete={() => handleCompleteInitial(trip.id)} 
+                onDelete={() => handleDelete(trip.id)} 
+                onComplete={() => handleComplete(trip.id)} 
               />
             ))}
           </div>
@@ -137,46 +145,25 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
             </Pagination>
           )}
 
-          {/* Delete Confirmation Dialogs */}
+          {/* Confirmation Dialogs */}
           <ConfirmationDialog
             isOpen={showDeleteConfirmation}
             onClose={() => setShowDeleteConfirmation(false)}
-            onConfirm={handleDeleteSecondary}
+            onConfirm={handleDeleteConfirm}
             title="Delete Trip"
             description="Are you sure you want to delete this trip? This action can't be undone."
-            confirmLabel="Continue"
+            confirmLabel="Delete"
             cancelLabel="Cancel"
           />
 
-          <ConfirmationDialog
-            isOpen={showFinalDeleteConfirmation}
-            onClose={() => setShowFinalDeleteConfirmation(false)}
-            onConfirm={handleDeleteConfirm}
-            title="Final Confirmation"
-            description="This will permanently delete the trip and all its data. Are you absolutely sure?"
-            confirmLabel="Delete Trip"
-            cancelLabel="Keep Trip"
-          />
-
-          {/* Complete Confirmation Dialogs */}
           <ConfirmationDialog
             isOpen={showCompleteConfirmation}
             onClose={() => setShowCompleteConfirmation(false)}
-            onConfirm={handleCompleteSecondary}
-            title="Complete Trip"
-            description="Are you sure you want to mark this trip as completed?"
-            confirmLabel="Continue"
-            cancelLabel="Cancel"
-          />
-
-          <ConfirmationDialog
-            isOpen={showFinalCompleteConfirmation}
-            onClose={() => setShowFinalCompleteConfirmation(false)}
             onConfirm={handleCompleteConfirm}
-            title="Final Confirmation"
-            description="This will archive the trip and mark it as completed. Are you absolutely sure?"
-            confirmLabel="Complete Trip"
-            cancelLabel="Keep Active"
+            title="Complete Trip"
+            description="Are you sure you want to mark this trip as completed? This will archive the trip."
+            confirmLabel="Complete"
+            cancelLabel="Cancel"
           />
         </>
       )}

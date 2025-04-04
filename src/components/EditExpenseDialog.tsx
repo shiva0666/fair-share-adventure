@@ -18,23 +18,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Expense, Participant, Trip, Group, ExpenseAttachment, ExpenseCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, X, Download, FileIcon } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { X, Download, FileIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useCamera } from "@/hooks/use-camera";
 
 interface EditExpenseDialogProps {
   trip: Trip | Group;
@@ -68,10 +55,7 @@ export function EditExpenseDialog({
   const [fileAttachments, setFileAttachments] = useState<ExpenseAttachment[]>(
     expense.attachments || []
   );
-  const [showCamera, setShowCamera] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { hasCamera } = useCamera();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setAmount(expense.amount.toString());
@@ -257,58 +241,6 @@ export function EditExpenseDialog({
         variant: "destructive",
       });
     }
-  };
-
-  const startCamera = async () => {
-    if (videoRef.current) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        videoRef.current.srcObject = stream;
-        setShowCamera(true);
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        toast({
-          title: "Error",
-          description: "Failed to access camera. Please check your permissions.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setShowCamera(false);
-    }
-  };
-
-  useEffect(() => {
-    if (showCamera) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-
-    return () => stopCamera();
-  }, [showCamera]);
-
-  const handleCapture = (imageDataURL: string) => {
-    const timestamp = new Date().toISOString();
-    const newAttachment: ExpenseAttachment = {
-      id: `camera-${timestamp}`,
-      filename: `Photo ${new Date().toLocaleString()}`,
-      fileUrl: imageDataURL,
-      fileType: 'image/jpeg',
-      fileSize: 0, // We don't know exact size for captured images
-      thumbnailUrl: imageDataURL,
-      uploadedAt: timestamp
-    };
-    
-    setFileAttachments(prev => [...prev, newAttachment]);
-    setShowCamera(false);
   };
 
   return (
@@ -514,39 +446,14 @@ export function EditExpenseDialog({
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
+                ref={fileInputRef}
               />
               <Label htmlFor="attachment" className="cursor-pointer rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80">
                 Upload Files
               </Label>
-              {hasCamera ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowCamera(true)}>
-                  <Camera className="mr-2 h-4 w-4" />
-                  Take Photo
-                </Button>
-              ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" disabled>
-                      <Camera className="mr-2 h-4 w-4" />
-                      Take Photo
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Camera Not Available</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        It seems like your device does not have a camera or camera access is restricted.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
             </div>
             {fileAttachments.length > 0 && (
-              <ScrollArea className="h-32 rounded-md border">
+              <ScrollArea className="h-32 rounded-md border mt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 p-2">
                   {fileAttachments.map((attachment, index) => (
                     <Card key={index} className="overflow-hidden">
@@ -612,44 +519,6 @@ export function EditExpenseDialog({
           </DialogFooter>
         </form>
       </DialogContent>
-      {showCamera && (
-        <Dialog open={showCamera} onOpenChange={setShowCamera}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Take a Photo</DialogTitle>
-              <DialogDescription>
-                Capture an image to attach to your expense.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="relative aspect-video w-full overflow-hidden rounded-md">
-              <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline />
-              <canvas ref={canvasRef} className="hidden" width="640" height="480" />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowCamera(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  if (videoRef.current && canvasRef.current) {
-                    const video = videoRef.current;
-                    const canvas = canvasRef.current;
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const context = canvas.getContext('2d');
-                    context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                    const imageDataURL = canvas.toDataURL('image/jpeg');
-                    handleCapture(imageDataURL);
-                  }
-                }}
-              >
-                Capture
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </Dialog>
   );
 }

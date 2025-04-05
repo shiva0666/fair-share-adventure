@@ -177,7 +177,12 @@ export const generateSettlements = (trip: Trip): Settlement[] => {
 };
 
 // Format currency with support for different currency codes
-export const formatCurrency = (amount: number, currencyCode?: string): string => {
+export const formatCurrency = (amount: number | undefined | null, currencyCode?: string): string => {
+  // Handle undefined or null amounts
+  if (amount === undefined || amount === null) {
+    return '—'; // Return a dash for undefined values
+  }
+  
   const code = currencyCode || 'USD';
   
   // Currency symbols for common currencies

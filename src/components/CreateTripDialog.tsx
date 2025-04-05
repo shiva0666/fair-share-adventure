@@ -20,9 +20,8 @@ import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createTrip } from "@/services/tripService";
 import { SupportedCurrency, Participant } from "@/types";
-import { AddParticipantForm } from "./AddParticipantForm";
-import { ParticipantList } from "./ParticipantList";
 import { useAuth } from "@/hooks/useAuth";
+import { ParticipantTabs } from "./ParticipantTabs";
 
 interface CreateTripDialogProps {
   open: boolean;
@@ -251,17 +250,11 @@ export function CreateTripDialog({
 
                 <div className="space-y-2">
                   <Label className="font-medium">Participants</Label>
-                  {participants.length > 0 && (
-                    <ParticipantList
-                      participants={participants}
-                      onRemoveParticipant={handleRemoveParticipant}
-                    />
-                  )}
-                  
-                  <div className="pt-2 border-t mt-4">
-                    <Label className="text-sm font-medium">Add New Participant</Label>
-                    <AddParticipantForm onAddParticipant={handleAddParticipant} />
-                  </div>
+                  <ParticipantTabs 
+                    participants={participants}
+                    onAddParticipant={handleAddParticipant}
+                    onRemoveParticipant={handleRemoveParticipant}
+                  />
                 </div>
               </div>
 
@@ -376,17 +369,11 @@ export function CreateTripDialog({
 
             <div className="space-y-2">
               <Label className="font-medium">Participants</Label>
-              {participants.length > 0 && (
-                <ParticipantList
-                  participants={participants}
-                  onRemoveParticipant={handleRemoveParticipant}
-                />
-              )}
-              
-              <div className="pt-2 border-t mt-4">
-                <Label className="text-sm font-medium">Add New Participant</Label>
-                <AddParticipantForm onAddParticipant={handleAddParticipant} />
-              </div>
+              <ParticipantTabs 
+                participants={participants}
+                onAddParticipant={handleAddParticipant}
+                onRemoveParticipant={handleRemoveParticipant}
+              />
             </div>
           </div>
 

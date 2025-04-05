@@ -57,6 +57,36 @@ const calculateSplitAmounts = (expense: Expense, participants: Participant[]) =>
   return splitDetails;
 };
 
+// Calculate who needs to pay whom based on balances
+const calculateSettlements = (participants: Participant[]) => {
+  const settlements = [];
+  const debtors = participants.filter(p => p.balance < 0).sort((a, b) => a.balance - b.balance);
+  const creditors = participants.filter(p => p.balance > 0).sort((a, b) => b.balance - a.balance);
+
+  // Create simplified settlement plan
+  for (const debtor of debtors) {
+    let remaining = Math.abs(debtor.balance);
+    
+    for (const creditor of creditors) {
+      if (remaining <= 0 || creditor.balance <= 0) continue;
+      
+      const amount = Math.min(remaining, creditor.balance);
+      if (amount > 0.01) { // Ignore very small amounts
+        settlements.push({
+          from: debtor.name,
+          to: creditor.name,
+          amount
+        });
+        
+        remaining -= amount;
+        creditor.balance -= amount; // Mutate the balance for calculation purposes only
+      }
+    }
+  }
+  
+  return settlements;
+};
+
 // Function to generate a PDF report for an entire trip
 export const generateTripPDF = async (trip: Trip): Promise<void> => {
   try {
@@ -92,15 +122,101 @@ export const generateTripPDF = async (trip: Trip): Promise<void> => {
     pdf.text(`Total Expenses: ${formatCurrency(totalExpenses, trip.currency)}`, 55, expenseY + 20);
     pdf.text(`Number of Expenses: ${trip.expenses.length}`, 55, expenseY + 40);
     
-    // Add expense details
+    // Add settlement summary section
     pdf.setFontSize(14);
-    pdf.text("Expense Details:", 40, expenseY + 70);
+    pdf.text("Settlement Summary:", 40, expenseY + 70);
+    
+    // Calculate settlements
+    const settlements = calculateSettlements([...trip.participants]);
     
     let currentY = expenseY + 90;
     
+    if (settlements.length === 0) {
+      pdf.setFontSize(12);
+      pdf.text("All expenses are settled. No payments required.", 55, currentY);
+      currentY += 20;
+    } else {
+      pdf.setFontSize(12);
+      pdf.text("To settle all expenses, the following payments should be made:", 55, currentY);
+      currentY += 20;
+      
+      settlements.forEach((settlement, index) => {
+        pdf.text(`${index + 1}. ${settlement.from} pays ${formatCurrency(settlement.amount, trip.currency)} to ${settlement.to}`, 70, currentY);
+        currentY += 20;
+      });
+    }
+    
+    // Add individual contribution summary
+    pdf.setFontSize(14);
+    pdf.text("Individual Contributions:", 40, currentY + 20);
+    currentY += 40;
+    
+    // For each participant, show how much they paid and how much they owe/are owed
+    trip.participants.forEach((participant) => {
+      // Check if we need a new page
+      if (currentY > 700) {
+        pdf.addPage();
+        currentY = 50;
+      }
+      
+      // Calculate total paid by this participant
+      let totalPaid = 0;
+      trip.expenses.forEach(expense => {
+        if (typeof expense.paidBy === 'string' && expense.paidBy === participant.id) {
+          totalPaid += expense.amount;
+        } else if (Array.isArray(expense.paidBy) && expense.paidBy.includes(participant.id)) {
+          if (expense.payerAmounts && expense.payerAmounts[participant.id]) {
+            totalPaid += expense.payerAmounts[participant.id];
+          } else {
+            totalPaid += expense.amount / expense.paidBy.length;
+          }
+        }
+      });
+      
+      // Calculate share of expenses (amount used)
+      let totalShare = 0;
+      trip.expenses.forEach(expense => {
+        if (expense.splitBetween.includes(participant.id)) {
+          if (expense.splitAmounts && expense.splitAmounts[participant.id]) {
+            totalShare += expense.splitAmounts[participant.id];
+          } else {
+            totalShare += expense.amount / expense.splitBetween.length;
+          }
+        }
+      });
+      
+      pdf.setFontSize(12);
+      pdf.setTextColor(33, 150, 243);
+      pdf.text(`${participant.name}:`, 55, currentY);
+      
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFontSize(11);
+      pdf.text(`• Paid: ${formatCurrency(totalPaid, trip.currency)}`, 70, currentY + 20);
+      pdf.text(`• Share of expenses: ${formatCurrency(totalShare, trip.currency)}`, 70, currentY + 40);
+      
+      if (participant.balance > 0) {
+        pdf.text(`• Is owed: ${formatCurrency(participant.balance, trip.currency)}`, 70, currentY + 60);
+      } else if (participant.balance < 0) {
+        pdf.text(`• Owes others: ${formatCurrency(Math.abs(participant.balance), trip.currency)}`, 70, currentY + 60);
+      } else {
+        pdf.text(`• All settled (no money owed)`, 70, currentY + 60);
+      }
+      
+      currentY += 90;
+    });
+    
+    // Add expense details
+    pdf.addPage();
+    currentY = 50;
+    
+    pdf.setFontSize(14);
+    pdf.setTextColor(50, 50, 50);
+    pdf.text("Expense Details:", 40, currentY);
+    currentY += 20;
+    
     trip.expenses.forEach((expense, index) => {
       // Check if we need a new page
-      if (currentY > 750) {
+      if (currentY > 700) {
         pdf.addPage();
         currentY = 50;
       }
@@ -181,22 +297,78 @@ export const generateExpensePDF = async (trip: Trip, expense: Expense): Promise<
       currentY += 20;
     });
     
+    // Add expense summary section with clear language
+    pdf.setFontSize(14);
+    pdf.text("Expense Summary:", 40, currentY + 20);
+    currentY += 40;
+    
+    pdf.setFontSize(12);
+    if (typeof expense.paidBy === 'string') {
+      const payer = trip.participants.find(p => p.id === expense.paidBy);
+      if (payer) {
+        pdf.text(`${payer.name} paid ${formatCurrency(expense.amount, trip.currency)} for this expense.`, 55, currentY);
+        currentY += 20;
+      }
+    } else if (Array.isArray(expense.paidBy)) {
+      const payers = expense.paidBy.map(id => {
+        const participant = trip.participants.find(p => p.id === id);
+        const amount = expense.payerAmounts?.[id] || expense.amount / expense.paidBy.length;
+        return {
+          name: participant?.name || "Unknown",
+          amount
+        };
+      });
+      
+      pdf.text(`This expense was paid by multiple people:`, 55, currentY);
+      currentY += 20;
+      
+      payers.forEach(payer => {
+        pdf.text(`• ${payer.name}: ${formatCurrency(payer.amount, trip.currency)}`, 70, currentY);
+        currentY += 15;
+      });
+      
+      currentY += 5;
+    }
+    
+    // Who owes what
+    const nonPayers = expense.splitBetween.filter(id => {
+      if (typeof expense.paidBy === 'string') {
+        return id !== expense.paidBy;
+      } else {
+        return !expense.paidBy.includes(id);
+      }
+    });
+    
+    if (nonPayers.length > 0) {
+      pdf.text(`The following people owe money for this expense:`, 55, currentY);
+      currentY += 20;
+      
+      nonPayers.forEach(id => {
+        const participant = trip.participants.find(p => p.id === id);
+        if (participant) {
+          const amount = expense.splitAmounts?.[id] || expense.amount / expense.splitBetween.length;
+          pdf.text(`• ${participant.name} owes ${formatCurrency(amount, trip.currency)}`, 70, currentY);
+          currentY += 15;
+        }
+      });
+    }
+    
     // Add notes if available
     if (expense.notes) {
       pdf.setFontSize(14);
-      pdf.text("Notes:", 40, currentY + 10);
+      pdf.text("Notes:", 40, currentY + 20);
       pdf.setFontSize(12);
-      pdf.text(expense.notes, 55, currentY + 30);
-      currentY += 50;
+      pdf.text(expense.notes, 55, currentY + 40);
+      currentY += 60;
     }
     
     // Add trip reference
     pdf.setFontSize(14);
-    pdf.text("Trip Reference:", 40, currentY + 10);
+    pdf.text("Trip Reference:", 40, currentY + 20);
     pdf.setFontSize(12);
-    pdf.text(`Trip: ${trip.name}`, 55, currentY + 30);
+    pdf.text(`Trip: ${trip.name}`, 55, currentY + 40);
     const dateRange = `${format(new Date(trip.startDate), "MMM d, yyyy")} - ${format(new Date(trip.endDate), "MMM d, yyyy")}`;
-    pdf.text(`Trip Dates: ${dateRange}`, 55, currentY + 50);
+    pdf.text(`Trip Dates: ${dateRange}`, 55, currentY + 60);
     
     // Add footer
     pdf.setFontSize(10);
@@ -246,11 +418,35 @@ export const generateGroupPDF = async (group: any): Promise<void> => {
     pdf.text(`Total Expenses: ${formatCurrency(totalExpenses, group.currency || 'USD')}`, 55, expenseY + 20);
     pdf.text(`Number of Expenses: ${group.expenses.length}`, 55, expenseY + 40);
     
-    // Add expense details
+    // Add settlement summary section
     pdf.setFontSize(14);
-    pdf.text("Expense Details:", 40, expenseY + 70);
+    pdf.text("Settlement Summary:", 40, expenseY + 70);
+    
+    // Calculate settlements
+    const settlements = calculateSettlements([...group.participants]);
     
     let currentY = expenseY + 90;
+    
+    if (settlements.length === 0) {
+      pdf.setFontSize(12);
+      pdf.text("All expenses are settled. No payments required.", 55, currentY);
+      currentY += 20;
+    } else {
+      pdf.setFontSize(12);
+      pdf.text("To settle all expenses, the following payments should be made:", 55, currentY);
+      currentY += 20;
+      
+      settlements.forEach((settlement: any, index: number) => {
+        pdf.text(`${index + 1}. ${settlement.from} pays ${formatCurrency(settlement.amount, group.currency || 'USD')} to ${settlement.to}`, 70, currentY);
+        currentY += 20;
+      });
+    }
+    
+    // Add expense details
+    pdf.setFontSize(14);
+    pdf.text("Expense Details:", 40, currentY + 30);
+    
+    currentY = currentY + 50;
     
     group.expenses.forEach((expense: any, index: number) => {
       // Check if we need a new page

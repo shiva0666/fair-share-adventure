@@ -19,10 +19,12 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Expense, Participant, Trip, ExpenseAttachment, ExpenseCategory } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
-import { X, FileIcon } from "lucide-react";
+import { X, FileIcon, Camera } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CameraButton } from "@/components/CameraButton";
 
 interface AddExpenseDialogProps {
   trip: Trip;
@@ -95,6 +97,28 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       };
 
       setFileAttachments(prev => [...prev, newAttachment]);
+    });
+  };
+
+  const handleImageCapture = (imageDataURL: string) => {
+    const id = uuidv4();
+    const filename = `photo_${new Date().toISOString()}.jpg`;
+    
+    const newAttachment: ExpenseAttachment = {
+      id,
+      filename,
+      fileUrl: imageDataURL,
+      fileType: 'image/jpeg',
+      fileSize: 0, // We don't know the exact size from the data URL
+      thumbnailUrl: imageDataURL,
+      uploadedAt: new Date().toISOString()
+    };
+
+    setFileAttachments(prev => [...prev, newAttachment]);
+    
+    toast({
+      title: "Photo added",
+      description: "The photo has been added to your expense."
     });
   };
 
@@ -191,6 +215,22 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
         ...prev,
         [participantId]: parsedValue,
       }));
+    }
+  };
+
+  const handlePaidByChange = (participantId: string, checked: boolean) => {
+    if (checked) {
+      setPaidByIds(prev => [...prev, participantId]);
+    } else {
+      setPaidByIds(prev => prev.filter(id => id !== participantId));
+    }
+  };
+
+  const handleSplitBetweenChange = (participantId: string, checked: boolean) => {
+    if (checked) {
+      setSplitBetween(prev => [...prev, participantId]);
+    } else {
+      setSplitBetween(prev => prev.filter(id => id !== participantId));
     }
   };
 
@@ -401,18 +441,10 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
               <Label>Paid By</Label>
               {trip.participants.map((participant) => (
                 <div key={participant.id} className="flex items-center space-x-2 mb-2">
-                  <Input
-                    type="checkbox"
+                  <Checkbox
                     id={`paidBy-${participant.id}`}
-                    className="h-4 w-4"
                     checked={paidByIds.includes(participant.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setPaidByIds([...paidByIds, participant.id]);
-                      } else {
-                        setPaidByIds(paidByIds.filter((id) => id !== participant.id));
-                      }
-                    }}
+                    onCheckedChange={(checked) => handlePaidByChange(participant.id, checked === true)}
                   />
                   <Label htmlFor={`paidBy-${participant.id}`} className="flex-1">{participant.name}</Label>
                   {paidByIds.includes(participant.id) && paidByIds.length > 1 && (
@@ -442,18 +474,10 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
               <Label>Split Between</Label>
               {trip.participants.map((participant) => (
                 <div key={participant.id} className="flex items-center space-x-2">
-                  <Input
-                    type="checkbox"
+                  <Checkbox
                     id={`splitBetween-${participant.id}`}
-                    className="h-4 w-4"
                     checked={splitBetween.includes(participant.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSplitBetween([...splitBetween, participant.id]);
-                      } else {
-                        setSplitBetween(splitBetween.filter((id) => id !== participant.id));
-                      }
-                    }}
+                    onCheckedChange={(checked) => handleSplitBetweenChange(participant.id, checked === true)}
                   />
                   <Label htmlFor={`splitBetween-${participant.id}`}>{participant.name}</Label>
                 </div>
@@ -546,9 +570,14 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
                   onChange={handleFileSelect}
                   ref={fileInputRef}
                 />
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Add Attachment
                 </Button>
+                <CameraButton onCapture={handleImageCapture} />
                 {fileAttachments.length > 0 && (
                   <span className="text-sm text-muted-foreground">
                     {fileAttachments.length} file(s) attached

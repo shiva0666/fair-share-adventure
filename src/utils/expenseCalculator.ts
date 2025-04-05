@@ -1,3 +1,4 @@
+
 import { Expense, Participant, Settlement, Trip, Group } from "@/types";
 
 // Calculate each participant's share of an expense

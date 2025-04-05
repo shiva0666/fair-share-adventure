@@ -18,10 +18,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Expense, Participant, Trip, Group, ExpenseAttachment, ExpenseCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { X, Download, FileIcon } from "lucide-react";
+import { X, Download, FileIcon, Camera } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CameraButton } from "@/components/CameraButton";
 
 interface EditExpenseDialogProps {
   trip: Trip | Group;
@@ -104,6 +106,28 @@ export function EditExpenseDialog({
     }
   };
 
+  const handleImageCapture = (imageDataURL: string) => {
+    const timestamp = new Date().toISOString();
+    const filename = `photo_${timestamp}.jpg`;
+    
+    const newAttachment: ExpenseAttachment = {
+      id: `upload-${timestamp}`,
+      filename,
+      fileUrl: imageDataURL,
+      fileType: 'image/jpeg',
+      fileSize: 0, // We don't know the exact size from the data URL
+      thumbnailUrl: imageDataURL,
+      uploadedAt: timestamp
+    };
+
+    setFileAttachments(prev => [...prev, newAttachment]);
+    
+    toast({
+      title: "Photo added",
+      description: "The photo has been added to your expense."
+    });
+  };
+
   const handleFileRemove = (indexToRemove: number) => {
     setFileAttachments(prevAttachments => 
       prevAttachments.filter((_, index) => index !== indexToRemove)
@@ -134,6 +158,22 @@ export function EditExpenseDialog({
       setSplitAmounts(prev => ({ ...prev, [participantId]: 0 }));
     } else {
       setSplitAmounts(prev => ({ ...prev, [participantId]: parsedValue }));
+    }
+  };
+
+  const handlePaidByChange = (participantId: string, checked: boolean) => {
+    if (checked) {
+      setPaidByIds(prev => [...prev, participantId]);
+    } else {
+      setPaidByIds(prev => prev.filter(id => id !== participantId));
+    }
+  };
+
+  const handleSplitBetweenChange = (participantId: string, checked: boolean) => {
+    if (checked) {
+      setSplitBetween(prev => [...prev, participantId]);
+    } else {
+      setSplitBetween(prev => prev.filter(id => id !== participantId));
     }
   };
   
@@ -331,18 +371,10 @@ export function EditExpenseDialog({
               <div className="p-2">
                 {trip.participants.map((participant) => (
                   <div key={participant.id} className="flex items-center space-x-2">
-                    <Input
-                      type="checkbox"
+                    <Checkbox
                       id={`paidBy-${participant.id}`}
                       checked={paidByIds.includes(participant.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setPaidByIds([...paidByIds, participant.id]);
-                        } else {
-                          setPaidByIds(paidByIds.filter((id) => id !== participant.id));
-                        }
-                      }}
-                      className="h-4 w-4"
+                      onCheckedChange={(checked) => handlePaidByChange(participant.id, checked === true)}
                     />
                     <Label htmlFor={`paidBy-${participant.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       {participant.name}
@@ -358,18 +390,10 @@ export function EditExpenseDialog({
               <div className="p-2">
                 {trip.participants.map((participant) => (
                   <div key={participant.id} className="flex items-center space-x-2">
-                    <Input
-                      type="checkbox"
+                    <Checkbox
                       id={`splitBetween-${participant.id}`}
                       checked={splitBetween.includes(participant.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSplitBetween([...splitBetween, participant.id]);
-                        } else {
-                          setSplitBetween(splitBetween.filter((id) => id !== participant.id));
-                        }
-                      }}
-                      className="h-4 w-4"
+                      onCheckedChange={(checked) => handleSplitBetweenChange(participant.id, checked === true)}
                     />
                     <Label htmlFor={`splitBetween-${participant.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       {participant.name}
@@ -451,6 +475,7 @@ export function EditExpenseDialog({
               <Label htmlFor="attachment" className="cursor-pointer rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80">
                 Upload Files
               </Label>
+              <CameraButton onCapture={handleImageCapture} />
             </div>
             {fileAttachments.length > 0 && (
               <ScrollArea className="h-32 rounded-md border mt-2">

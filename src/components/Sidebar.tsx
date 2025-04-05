@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,6 @@ import {
   LayoutDashboard, 
   Map, 
   Users, 
-  Settings, 
   HelpCircle,
   ChevronLeft,
   ChevronRight,
@@ -54,7 +52,7 @@ export function Sidebar({ className }: SidebarProps) {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
-  // Define sidebar menu items
+  // Define sidebar menu items - removed Settings from this list
   const menuItems = [
     {
       name: "Dashboard",
@@ -75,11 +73,6 @@ export function Sidebar({ className }: SidebarProps) {
       name: "Profile",
       icon: <UserCircle className="h-5 w-5" />,
       path: "/profile",
-    },
-    {
-      name: "Settings",
-      icon: <Settings className="h-5 w-5" />,
-      path: "/settings",
     },
     {
       name: "Help",

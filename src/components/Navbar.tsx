@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, UserCircle } from "lucide-react";
+import { BellIcon, LogOut, Settings, UserCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Trip } from "@/types";
+import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 interface NavbarProps {
   tripName?: string;
@@ -21,6 +24,18 @@ interface NavbarProps {
 
 export const Navbar = ({ tripName, currentTrip }: NavbarProps = {}) => {
   const { user, logoutUser } = useAuth();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { toast } = useToast();
+
+  const handleToggleNotifications = (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
+    toast({
+      title: enabled ? "Notifications enabled" : "Notifications disabled",
+      description: enabled 
+        ? "You will now receive notifications" 
+        : "You will no longer receive notifications",
+    });
+  };
 
   return (
     <header className="bg-background border-b sticky top-0 z-30">
@@ -29,8 +44,40 @@ export const Navbar = ({ tripName, currentTrip }: NavbarProps = {}) => {
           Splittos
         </Link>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
           <ModeToggle />
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative"
+                aria-label="Notifications"
+              >
+                <BellIcon className="h-5 w-5" />
+                {notificationsEnabled && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="flex items-center justify-between">
+                <span>Enable notifications</span>
+                <Switch 
+                  checked={notificationsEnabled}
+                  onCheckedChange={handleToggleNotifications}
+                />
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Link to="/notifications" className="w-full">Manage notification settings</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="User menu">

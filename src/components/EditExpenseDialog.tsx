@@ -47,6 +47,9 @@ export function EditExpenseDialog({
   const [paidByIds, setPaidByIds] = useState<string[]>(
     Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy]
   );
+  const [payerAmounts, setPayerAmounts] = useState<Record<string, number>>(
+    expense.payerAmounts || {}
+  );
   const [splitBetween, setSplitBetween] = useState<string[]>(expense.splitBetween);
   const [splitMethod, setSplitMethod] = useState<"equal" | "custom">(
     expense.splitAmounts && Object.keys(expense.splitAmounts).length > 0 ? "custom" : "equal"
@@ -64,12 +67,30 @@ export function EditExpenseDialog({
     setName(expense.name);
     setDate(expense.date ? new Date(expense.date) : undefined);
     setPaidByIds(Array.isArray(expense.paidBy) ? expense.paidBy : [expense.paidBy]);
+    setPayerAmounts(expense.payerAmounts || {});
     setSplitBetween(expense.splitBetween);
     setSplitMethod(expense.splitAmounts && Object.keys(expense.splitAmounts).length > 0 ? "custom" : "equal");
     setSplitAmounts(expense.splitAmounts || {});
     setNotes(expense.notes || "");
     setFileAttachments(expense.attachments || []);
   }, [expense]);
+
+  useEffect(() => {
+    if (paidByIds.length > 1) {
+      const equalAmount = parseFloat(amount) / paidByIds.length;
+      const newPayerAmounts: Record<string, number> = {};
+      
+      paidByIds.forEach(id => {
+        newPayerAmounts[id] = payerAmounts[id] || equalAmount;
+      });
+      
+      const updatedPayerAmounts = Object.fromEntries(
+        Object.entries(newPayerAmounts).filter(([id]) => paidByIds.includes(id))
+      );
+      
+      setPayerAmounts(updatedPayerAmounts);
+    }
+  }, [paidByIds, amount]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -145,6 +166,15 @@ export function EditExpenseDialog({
     }
   };
 
+  const handlePayerAmountChange = (participantId: string, value: string) => {
+    const parsedValue = parseFloat(value);
+    if (isNaN(parsedValue)) {
+      setPayerAmounts(prev => ({ ...prev, [participantId]: 0 }));
+    } else {
+      setPayerAmounts(prev => ({ ...prev, [participantId]: parsedValue }));
+    }
+  };
+
   const distributeRemaining = (participantId: string, amountToDistribute: number) => {
     const currentAmount = splitAmounts[participantId] || 0;
     const newAmount = currentAmount + amountToDistribute;
@@ -165,6 +195,11 @@ export function EditExpenseDialog({
       setPaidByIds(prev => [...prev, participantId]);
     } else {
       setPaidByIds(prev => prev.filter(id => id !== participantId));
+      
+      if (payerAmounts[participantId]) {
+        const { [participantId]: _, ...rest } = payerAmounts;
+        setPayerAmounts(rest);
+      }
     }
   };
 
@@ -173,9 +208,14 @@ export function EditExpenseDialog({
       setSplitBetween(prev => [...prev, participantId]);
     } else {
       setSplitBetween(prev => prev.filter(id => id !== participantId));
+      
+      if (splitAmounts[participantId]) {
+        const { [participantId]: _, ...rest } = splitAmounts;
+        setSplitAmounts(rest);
+      }
     }
   };
-  
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -195,6 +235,18 @@ export function EditExpenseDialog({
         variant: "destructive",
       });
       return;
+    }
+
+    if (paidByIds.length > 1) {
+      const totalPaid = Object.values(payerAmounts).reduce((sum, amount) => sum + amount, 0);
+      if (Math.abs(totalPaid - parseFloat(amount)) > 0.01) {
+        toast({
+          title: "Error",
+          description: "Total paid amount must equal the expense amount.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (splitMethod === "custom") {
@@ -225,8 +277,9 @@ export function EditExpenseDialog({
       category,
       date: date.toISOString(),
       paidBy: paidByIds,
+      payerAmounts: paidByIds.length > 1 ? payerAmounts : undefined,
       splitBetween: formattedSplitBetween,
-      splitAmounts: formattedSplitAmounts,
+      splitAmounts: splitMethod === "custom" ? formattedSplitAmounts : undefined,
       notes: notes.trim() || undefined,
       attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
     };
@@ -369,19 +422,39 @@ export function EditExpenseDialog({
             <ScrollArea className="h-24 rounded-md border">
               <div className="p-2">
                 {trip.participants.map((participant) => (
-                  <div key={participant.id} className="flex items-center space-x-2">
+                  <div key={participant.id} className="flex items-center space-x-2 mb-2">
                     <Checkbox
                       id={`paidBy-${participant.id}`}
                       checked={paidByIds.includes(participant.id)}
                       onCheckedChange={(checked) => handlePaidByChange(participant.id, checked === true)}
                     />
-                    <Label htmlFor={`paidBy-${participant.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    <Label htmlFor={`paidBy-${participant.id}`} className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       {participant.name}
                     </Label>
+                    {paidByIds.includes(participant.id) && paidByIds.length > 1 && (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Amount"
+                        className="w-24"
+                        value={payerAmounts[participant.id]?.toString() || ""}
+                        onChange={(e) => handlePayerAmountChange(participant.id, e.target.value)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
             </ScrollArea>
+            {paidByIds.length > 1 && (
+              <div className="text-sm text-muted-foreground mt-1">
+                Total: {formatCurrency(Object.values(payerAmounts).reduce((sum, val) => sum + val, 0), trip.currency)}
+                {parseFloat(amount) > 0 && Math.abs(Object.values(payerAmounts).reduce((sum, val) => sum + val, 0) - parseFloat(amount)) > 0.01 && (
+                  <span className="text-destructive ml-2">
+                    (Difference: {formatCurrency(parseFloat(amount) - Object.values(payerAmounts).reduce((sum, val) => sum + val, 0), trip.currency)})
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <Label>Split Between</Label>

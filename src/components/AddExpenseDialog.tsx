@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Expense, Participant, Trip, ExpenseAttachment, ExpenseCategory } from "@/types";
+import { Expense, Participant, Trip, ExpenseAttachment, ExpenseCategory, Group } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
 import { X, FileIcon, Camera } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CameraButton } from "@/components/CameraButton";
 
 interface AddExpenseDialogProps {
-  trip: Trip;
+  trip: Trip | Group;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExpenseAdded: (expense: Expense) => void;
@@ -54,10 +54,14 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       
       const newPayerAmounts: { [participantId: string]: number } = {};
       paidByIds.forEach(id => {
-        newPayerAmounts[id] = equalAmount;
+        newPayerAmounts[id] = payerAmounts[id] || equalAmount;
       });
       
-      setPayerAmounts(newPayerAmounts);
+      const updatedPayerAmounts = Object.fromEntries(
+        Object.entries(newPayerAmounts).filter(([id]) => paidByIds.includes(id))
+      );
+      
+      setPayerAmounts(updatedPayerAmounts);
     }
   }, [paidByIds, amount]);
 
@@ -222,6 +226,11 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       setPaidByIds(prev => [...prev, participantId]);
     } else {
       setPaidByIds(prev => prev.filter(id => id !== participantId));
+      
+      if (payerAmounts[participantId]) {
+        const { [participantId]: _, ...rest } = payerAmounts;
+        setPayerAmounts(rest);
+      }
     }
   };
 
@@ -230,6 +239,11 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       setSplitBetween(prev => [...prev, participantId]);
     } else {
       setSplitBetween(prev => prev.filter(id => id !== participantId));
+      
+      if (splitAmounts[participantId]) {
+        const { [participantId]: _, ...rest } = splitAmounts;
+        setSplitAmounts(rest);
+      }
     }
   };
 
@@ -324,12 +338,12 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
     try {
       let createdExpense;
       
-      if (window.location.pathname.includes('/groups/')) {
-        const groupService = await import('@/services/groupService');
-        createdExpense = await groupService.addExpense(trip.id, newExpense);
-      } else {
+      if ('startDate' in trip && 'endDate' in trip) {
         const tripService = await import('@/services/tripService');
         createdExpense = await tripService.addExpense(trip.id, newExpense);
+      } else {
+        const groupService = await import('@/services/groupService');
+        createdExpense = await groupService.addExpense(trip.id, newExpense);
       }
       
       if (createdExpense) {

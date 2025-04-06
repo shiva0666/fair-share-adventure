@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Participant } from "@/types";
 import { ParticipantList } from "./ParticipantList";
-import { CopyIcon, Users, Link as LinkIcon } from "lucide-react";
+import { CopyIcon, Users, Link as LinkIcon, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCamera } from "@/hooks/use-camera";
 
@@ -27,7 +27,9 @@ export function ParticipantTabs({
   const [inviteContact, setInviteContact] = useState('');
   const [inviteLink, setInviteLink] = useState('');
   const [activeTab, setActiveTab] = useState("add-participant");
+  const [linkCopied, setLinkCopied] = useState(false);
   const { toast } = useToast();
+  const { requestCameraPermission } = useCamera();
 
   // Reset form fields
   const resetForm = () => {
@@ -98,18 +100,28 @@ export function ParticipantTabs({
   const copyLink = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
+      setLinkCopied(true);
       toast({
         title: "Copied to clipboard",
         description: "The invite link has been copied."
       });
+      
+      // Reset copied state after 3 seconds
+      setTimeout(() => {
+        setLinkCopied(false);
+      }, 3000);
     }
   };
 
   // Fetch contacts (would require additional permission handling in real app)
   const fetchContacts = async () => {
+    const cameraPermission = await requestCameraPermission();
+    
     toast({
       title: "Contact access requested",
-      description: "This would open the contacts selector on a real device."
+      description: cameraPermission 
+        ? "This would open the contacts selector on a real device."
+        : "Permission denied. Please enable contacts access in your settings."
     });
     
     // This is a mock implementation - real implementation would use
@@ -129,12 +141,12 @@ export function ParticipantTabs({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full">
-          <TabsTrigger value="add-participant" className="flex-1">
+        <TabsList className="grid grid-cols-2 w-full bg-muted rounded-md p-1">
+          <TabsTrigger value="add-participant" className="rounded-sm">
             <Users className="h-4 w-4 mr-2" />
             Add Participant
           </TabsTrigger>
-          <TabsTrigger value="generate-link" className="flex-1">
+          <TabsTrigger value="generate-link" className="rounded-sm">
             <LinkIcon className="h-4 w-4 mr-2" />
             Generate Invite Link
           </TabsTrigger>
@@ -179,6 +191,7 @@ export function ParticipantTabs({
                   type="button"
                   onClick={fetchContacts}
                 >
+                  <Phone className="h-4 w-4 mr-2" />
                   Contacts
                 </Button>
               </div>
@@ -217,7 +230,7 @@ export function ParticipantTabs({
         <TabsContent value="generate-link" className="space-y-4 pt-4">
           <div className="text-center pb-4">
             <p className="text-muted-foreground">
-              Generate a unique link that you can share with others to invite them to this trip
+              Generate a unique link that you can share with others to invite them to this group
             </p>
           </div>
           
@@ -246,7 +259,7 @@ export function ParticipantTabs({
                   onClick={copyLink}
                 >
                   <CopyIcon className="h-4 w-4 mr-2" />
-                  Copy
+                  {linkCopied ? "Copied" : "Copy"}
                 </Button>
               </div>
             </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -109,7 +108,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
       filename,
       fileUrl: imageDataURL,
       fileType: 'image/jpeg',
-      fileSize: 0, // We don't know the exact size from the data URL
+      fileSize: 0,
       thumbnailUrl: imageDataURL,
       uploadedAt: new Date().toISOString()
     };

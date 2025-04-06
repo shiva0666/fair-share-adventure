@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -72,6 +73,15 @@ const GroupDetail = () => {
     endDate: new Date().toISOString(),
   };
 
+  // Handle expense operations
+  const handleExpenseAdded = () => {
+    refetch();
+  };
+
+  const handleExpenseUpdated = () => {
+    refetch();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar currentTrip={groupAsTrip} />
@@ -126,7 +136,11 @@ const GroupDetail = () => {
           <TabsContent value="expenses" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
-                <ExpensesView trip={groupAsTrip} onRefresh={() => refetch()} />
+                <ExpensesView 
+                  trip={groupAsTrip} 
+                  onExpenseAdded={handleExpenseAdded}
+                  onExpenseUpdated={handleExpenseUpdated}
+                />
               </div>
               <div className="space-y-6">
                 <GroupSummary group={group} />

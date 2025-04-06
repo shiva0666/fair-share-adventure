@@ -18,6 +18,7 @@ import { SupportedCurrency, Participant } from "@/types";
 import { ParticipantList } from "./ParticipantList";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Copy, Send, Link } from "lucide-react";
 
 interface CreateGroupDialogProps {

@@ -9,7 +9,6 @@ import { getAllGroups, deleteGroup, updateGroupStatus } from "@/services/groupSe
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { useToast } from "@/hooks/use-toast";
 import { GroupsList } from "@/components/GroupsList";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const GroupsPage = () => {
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);

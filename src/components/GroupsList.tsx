@@ -5,6 +5,8 @@ import { GroupCard } from "@/components/GroupCard";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface GroupsListProps {
   groups: Group[];
@@ -13,6 +15,7 @@ interface GroupsListProps {
 }
 
 export function GroupsList({ groups, onDeleteGroup, onCompleteGroup }: GroupsListProps) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [filteredGroups, setFilteredGroups] = useState<Group[]>(groups);
   const [currentPage, setCurrentPage] = useState(1);
   const groupsPerPage = 6;
@@ -22,6 +25,26 @@ export function GroupsList({ groups, onDeleteGroup, onCompleteGroup }: GroupsLis
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
+
+  // Filter groups by search term
+  const filterGroups = (term: string) => {
+    const filtered = groups.filter(
+      (group) =>
+        group.name.toLowerCase().includes(term.toLowerCase()) ||
+        group.participants.some(p => 
+          p.name.toLowerCase().includes(term.toLowerCase())
+        )
+    );
+    setFilteredGroups(filtered);
+    setCurrentPage(1); // Reset to first page
+  };
+
+  // Handle search
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    filterGroups(term);
+  };
 
   // Calculate pagination
   const indexOfLastGroup = currentPage * groupsPerPage;
@@ -64,10 +87,20 @@ export function GroupsList({ groups, onDeleteGroup, onCompleteGroup }: GroupsLis
 
   return (
     <div className="space-y-6">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="Search groups or participants..."
+          value={searchTerm}
+          onChange={handleSearch}
+          className="pl-10"
+        />
+      </div>
+
       {filteredGroups.length === 0 ? (
         <div className="text-center py-12 bg-muted/50 rounded-lg">
           <h3 className="text-lg font-medium">No groups found</h3>
-          <p className="text-muted-foreground mt-1">Create a new group to get started.</p>
+          <p className="text-muted-foreground mt-1">Create a new group to get started or adjust your search.</p>
         </div>
       ) : (
         <>

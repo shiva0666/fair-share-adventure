@@ -8,25 +8,13 @@ import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
   MapPin, 
-  Users, 
-  MoreVertical, 
-  Trash, 
-  CheckCircle,
-  EyeOff,
-  Edit 
+  Users
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/utils/expenseCalculator";
 import { useState } from "react";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
 import { getTripDetailUrl } from "@/lib/utils";
 
 interface TripCardProps {
@@ -127,61 +115,10 @@ export function TripCard({
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               <Badge variant={trip.status === "active" ? "default" : "outline"}>
                 {trip.status === "active" ? "Active" : "Completed"}
               </Badge>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditTrip();
-                  }}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit Trip</span>
-                  </DropdownMenuItem>
-                  
-                  {trip.status === "active" && (
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setShowCompleteDialog(true);
-                    }}>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      <span>Mark as Completed</span>
-                    </DropdownMenuItem>
-                  )}
-                  
-                  {onHide && (
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setShowHideDialog(true);
-                    }}>
-                      <EyeOff className="mr-2 h-4 w-4" />
-                      <span>Hide Trip</span>
-                    </DropdownMenuItem>
-                  )}
-                  
-                  <DropdownMenuSeparator />
-                  
-                  <DropdownMenuItem 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteDialog(true);
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash className="mr-2 h-4 w-4" />
-                    <span>Delete Trip</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
           

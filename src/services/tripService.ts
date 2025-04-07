@@ -185,7 +185,7 @@ export const deleteExpense = async (tripId: string, expenseId: string): Promise<
   });
 };
 
-// Delete an expense attachment
+// Delete expense attachment
 export const deleteExpenseAttachment = async (
   tripId: string, 
   expenseId: string, 
@@ -467,10 +467,23 @@ export const createExpense = async (tripId: string, expense: Omit<Expense, "id">
 
 // Delete a trip
 export const deleteTrip = async (tripId: string): Promise<void> => {
-  console.log(`Deleting trip with ID: ${tripId}`);
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return;
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const trips = getStoredTrips();
+        const updatedTrips = trips.filter(trip => trip.id !== tripId);
+        
+        if (trips.length === updatedTrips.length) {
+          throw new Error('Trip not found');
+        }
+        
+        saveTrips(updatedTrips);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    }, 500);
+  });
 };
 
 // Email a trip report

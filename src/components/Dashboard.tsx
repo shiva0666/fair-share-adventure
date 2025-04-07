@@ -24,12 +24,6 @@ export default function Dashboard() {
   const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
   const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
   
-  // Recent tabs
-  const [recentTripsTab, setRecentTripsTab] = useState("all");
-  const [filteredRecentTrips, setFilteredRecentTrips] = useState<Trip[]>([]);
-  const [recentGroupsTab, setRecentGroupsTab] = useState("all");
-  const [filteredRecentGroups, setFilteredRecentGroups] = useState<Group[]>([]);
-  
   const {
     data: trips,
     isLoading: isTripsLoading,
@@ -70,16 +64,14 @@ export default function Dashboard() {
   useEffect(() => {
     if (trips) {
       filterTrips(trips, activeTab);
-      filterRecentTrips(trips, recentTripsTab);
     }
-  }, [trips, activeTab, recentTripsTab]);
+  }, [trips, activeTab]);
   
   useEffect(() => {
     if (groups) {
       filterGroups(groups, activeGroupTab);
-      filterRecentGroups(groups, recentGroupsTab);
     }
-  }, [groups, activeGroupTab, recentGroupsTab]);
+  }, [groups, activeGroupTab]);
   
   const filterTrips = (tripsToFilter: Trip[], filter: string) => {
     switch (filter) {
@@ -96,26 +88,6 @@ export default function Dashboard() {
     }
   };
   
-  const filterRecentTrips = (tripsToFilter: Trip[], filter: string) => {
-    // Get recent trips (e.g., last 5)
-    const recentTrips = [...tripsToFilter].sort((a, b) => 
-      new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-    ).slice(0, 3);
-    
-    switch (filter) {
-      case "active":
-        setFilteredRecentTrips(recentTrips.filter(trip => trip.status === "active"));
-        break;
-      case "completed":
-        setFilteredRecentTrips(recentTrips.filter(trip => trip.status === "completed"));
-        break;
-      case "all":
-      default:
-        setFilteredRecentTrips(recentTrips);
-        break;
-    }
-  };
-  
   const filterGroups = (groupsToFilter: Group[], filter: string) => {
     switch (filter) {
       case "active":
@@ -127,26 +99,6 @@ export default function Dashboard() {
       case "all":
       default:
         setFilteredGroups(groupsToFilter);
-        break;
-    }
-  };
-
-  const filterRecentGroups = (groupsToFilter: Group[], filter: string) => {
-    // Get recent groups (e.g., last 3)
-    const recentGroups = [...groupsToFilter].sort((a, b) => 
-      new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-    ).slice(0, 3);
-    
-    switch (filter) {
-      case "active":
-        setFilteredRecentGroups(recentGroups.filter(group => group.status === "active"));
-        break;
-      case "completed":
-        setFilteredRecentGroups(recentGroups.filter(group => group.status === "completed"));
-        break;
-      case "all":
-      default:
-        setFilteredRecentGroups(recentGroups);
         break;
     }
   };
@@ -181,33 +133,6 @@ export default function Dashboard() {
         if (activeGroupTab === "completed") return group.status === "completed";
         return true;
       }));
-    }
-  };
-
-  const handleDeleteTrip = async (tripId: string) => {
-    if (trips) {
-      const updatedTrips = trips.filter(trip => trip.id !== tripId);
-      setFilteredTrips(updatedTrips.filter(trip => {
-        if (activeTab === "active") return trip.status === "active";
-        if (activeTab === "completed") return trip.status === "completed";
-        return true;
-      }));
-      filterRecentTrips(updatedTrips, recentTripsTab);
-    }
-  };
-
-  const handleCompleteTrip = async (tripId: string) => {
-    if (trips) {
-      const updatedTrips = trips.map(trip => 
-        trip.id === tripId ? { ...trip, status: "completed" as const } : trip
-      );
-      
-      setFilteredTrips(updatedTrips.filter(trip => {
-        if (activeTab === "active") return trip.status === "active";
-        if (activeTab === "completed") return trip.status === "completed";
-        return true;
-      }));
-      filterRecentTrips(updatedTrips, recentTripsTab);
     }
   };
 
@@ -268,96 +193,6 @@ export default function Dashboard() {
         </div>
       )}
       
-      {/* Recent Trips Section */}
-      <div className="mb-10">
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-semibold">Your Recent Trips</h2>
-        </div>
-
-        <Tabs value={recentTripsTab} onValueChange={setRecentTripsTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="mt-0">
-            <RecentTripsGrid 
-              trips={filteredRecentTrips} 
-              loading={isLoading} 
-              onCreateTrip={() => setShowCreateTripDialog(true)}
-              onDeleteTrip={handleDeleteTrip}
-              onCompleteTrip={handleCompleteTrip}
-            />
-          </TabsContent>
-          
-          <TabsContent value="active" className="mt-0">
-            <RecentTripsGrid 
-              trips={filteredRecentTrips} 
-              loading={isLoading} 
-              onCreateTrip={() => setShowCreateTripDialog(true)}
-              onDeleteTrip={handleDeleteTrip}
-              onCompleteTrip={handleCompleteTrip}
-            />
-          </TabsContent>
-          
-          <TabsContent value="completed" className="mt-0">
-            <RecentTripsGrid 
-              trips={filteredRecentTrips} 
-              loading={isLoading} 
-              onCreateTrip={() => setShowCreateTripDialog(true)}
-              onDeleteTrip={handleDeleteTrip}
-              onCompleteTrip={handleCompleteTrip}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Recent Groups Section */}
-      <div className="mb-10">
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-semibold">Your Recent Groups</h2>
-        </div>
-
-        <Tabs value={recentGroupsTab} onValueChange={setRecentGroupsTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="mt-0">
-            <RecentGroupsGrid 
-              groups={filteredRecentGroups} 
-              loading={isLoading} 
-              onCreateGroup={() => setShowCreateGroupDialog(true)}
-              onDelete={handleDeleteGroup}
-              onComplete={handleCompleteGroup}
-            />
-          </TabsContent>
-          
-          <TabsContent value="active" className="mt-0">
-            <RecentGroupsGrid 
-              groups={filteredRecentGroups} 
-              loading={isLoading} 
-              onCreateGroup={() => setShowCreateGroupDialog(true)}
-              onDelete={handleDeleteGroup}
-              onComplete={handleCompleteGroup}
-            />
-          </TabsContent>
-          
-          <TabsContent value="completed" className="mt-0">
-            <RecentGroupsGrid 
-              groups={filteredRecentGroups} 
-              loading={isLoading} 
-              onCreateGroup={() => setShowCreateGroupDialog(true)}
-              onDelete={handleDeleteGroup}
-              onComplete={handleCompleteGroup}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-      
       <div className="mb-10">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-xl font-semibold">Your Trips</h2>
@@ -378,8 +213,6 @@ export default function Dashboard() {
               trips={filteredTrips} 
               loading={isLoading} 
               onCreateTrip={() => setShowCreateTripDialog(true)}
-              onDeleteTrip={handleDeleteTrip}
-              onCompleteTrip={handleCompleteTrip}
             />
           </TabsContent>
           
@@ -388,8 +221,6 @@ export default function Dashboard() {
               trips={filteredTrips} 
               loading={isLoading} 
               onCreateTrip={() => setShowCreateTripDialog(true)}
-              onDeleteTrip={handleDeleteTrip}
-              onCompleteTrip={handleCompleteTrip}
             />
           </TabsContent>
           
@@ -398,8 +229,6 @@ export default function Dashboard() {
               trips={filteredTrips} 
               loading={isLoading} 
               onCreateTrip={() => setShowCreateTripDialog(true)}
-              onDeleteTrip={handleDeleteTrip}
-              onCompleteTrip={handleCompleteTrip}
             />
           </TabsContent>
         </Tabs>
@@ -537,11 +366,9 @@ interface TripsGridProps {
   trips: Trip[] | undefined;
   loading: boolean;
   onCreateTrip: () => void;
-  onDeleteTrip: (id: string) => void;
-  onCompleteTrip: (id: string) => void;
 }
 
-function TripsGrid({ trips, loading, onCreateTrip, onDeleteTrip, onCompleteTrip }: TripsGridProps) {
+function TripsGrid({ trips, loading, onCreateTrip }: TripsGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -572,86 +399,9 @@ function TripsGrid({ trips, loading, onCreateTrip, onDeleteTrip, onCompleteTrip 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {trips.map((trip) => (
-        <TripCard 
-          key={trip.id} 
-          trip={trip} 
-          onDelete={onDeleteTrip} 
-          onComplete={onCompleteTrip}
-        />
+        <TripCard key={trip.id} trip={trip} />
       ))}
       <CreateTripCard onCreateTrip={onCreateTrip} />
-    </div>
-  );
-}
-
-interface RecentTripsGridProps {
-  trips: Trip[] | undefined;
-  loading: boolean;
-  onCreateTrip: () => void;
-  onDeleteTrip: (id: string) => void;
-  onCompleteTrip: (id: string) => void;
-}
-
-function RecentTripsGrid({ trips, loading, onCreateTrip, onDeleteTrip, onCompleteTrip }: RecentTripsGridProps) {
-  const navigate = useNavigate();
-  
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-[200px] rounded-lg" />
-        ))}
-      </div>
-    );
-  }
-  
-  if (!trips?.length) {
-    return (
-      <div className="text-center py-12 border rounded-lg bg-muted/20">
-        <h3 className="text-lg font-medium mb-2">No recent trips found</h3>
-        <p className="text-muted-foreground mb-6">
-          Get started by creating your first trip!
-        </p>
-        <button 
-          onClick={onCreateTrip}
-          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          Create Your First Trip
-        </button>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {trips.map((trip) => (
-        <TripCard 
-          key={trip.id} 
-          trip={trip} 
-          variant="compact" 
-          onDelete={onDeleteTrip} 
-          onComplete={onCompleteTrip}
-        />
-      ))}
-      {trips.length < 3 && (
-        <Card 
-          className="border-dashed hover:border-primary/50 transition-colors cursor-pointer h-full" 
-          onClick={onCreateTrip}
-        >
-          <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
-            <div className="py-8">
-              <p className="text-sm text-muted-foreground mb-2">
-                Add another trip
-              </p>
-              <button 
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                Create Trip
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
@@ -744,78 +494,6 @@ function CreateTripCard({ onCreateTrip }: CreateTripCardProps) {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-interface RecentGroupsGridProps {
-  groups: Group[] | undefined;
-  loading: boolean;
-  onCreateGroup: () => void;
-  onDelete: (id: string) => void;
-  onComplete: (id: string) => void;
-}
-
-function RecentGroupsGrid({ groups, loading, onCreateGroup, onDelete, onComplete }: RecentGroupsGridProps) {
-  const navigate = useNavigate();
-  
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-[200px] rounded-lg" />
-        ))}
-      </div>
-    );
-  }
-  
-  if (!groups?.length) {
-    return (
-      <div className="text-center py-12 border rounded-lg bg-muted/20">
-        <h3 className="text-lg font-medium mb-2">No recent groups found</h3>
-        <p className="text-muted-foreground mb-6">
-          Get started by creating your first group!
-        </p>
-        <button 
-          onClick={onCreateGroup}
-          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          Create Your First Group
-        </button>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {groups.map((group) => (
-        <GroupCard 
-          key={group.id} 
-          group={group} 
-          variant="compact" 
-          onDelete={onDelete}
-          onComplete={onComplete}
-        />
-      ))}
-      {groups.length < 3 && (
-        <Card 
-          className="border-dashed hover:border-primary/50 transition-colors cursor-pointer h-full" 
-          onClick={onCreateGroup}
-        >
-          <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
-            <div className="py-8">
-              <p className="text-sm text-muted-foreground mb-2">
-                Add another group
-              </p>
-              <button 
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                Create Group
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
   );
 }
 

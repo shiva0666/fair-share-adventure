@@ -19,6 +19,11 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
   const [currentPage, setCurrentPage] = useState(1);
   const tripsPerPage = 6;
 
+  // Confirmation dialogs state
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
+
   // Filter trips by search term
   const filterTrips = (term: string) => {
     const filtered = trips.filter(
@@ -50,6 +55,34 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
     filterTrips(term);
   };
 
+  // Handle delete confirmation
+  const handleDelete = (id: string) => {
+    setSelectedTripId(id);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedTripId) {
+      onDeleteTrip(selectedTripId);
+      setShowDeleteConfirmation(false);
+      setSelectedTripId(null);
+    }
+  };
+
+  // Handle complete confirmation
+  const handleComplete = (id: string) => {
+    setSelectedTripId(id);
+    setShowCompleteConfirmation(true);
+  };
+
+  const handleCompleteConfirm = () => {
+    if (selectedTripId) {
+      onCompleteTrip(selectedTripId);
+      setShowCompleteConfirmation(false);
+      setSelectedTripId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="relative">
@@ -74,8 +107,8 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
               <TripCard 
                 key={trip.id} 
                 trip={trip} 
-                onDelete={onDeleteTrip} 
-                onComplete={onCompleteTrip} 
+                onDelete={() => handleDelete(trip.id)} 
+                onComplete={() => handleComplete(trip.id)} 
               />
             ))}
           </div>
@@ -111,6 +144,27 @@ export function TripsList({ trips, onDeleteTrip, onCompleteTrip }: TripsListProp
               </PaginationContent>
             </Pagination>
           )}
+
+          {/* Confirmation Dialogs */}
+          <ConfirmationDialog
+            isOpen={showDeleteConfirmation}
+            onClose={() => setShowDeleteConfirmation(false)}
+            onConfirm={handleDeleteConfirm}
+            title="Delete Trip"
+            description="Are you sure you want to delete this trip? This action can't be undone."
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+          />
+
+          <ConfirmationDialog
+            isOpen={showCompleteConfirmation}
+            onClose={() => setShowCompleteConfirmation(false)}
+            onConfirm={handleCompleteConfirm}
+            title="Complete Trip"
+            description="Are you sure you want to mark this trip as completed? This will archive the trip."
+            confirmLabel="Complete"
+            cancelLabel="Cancel"
+          />
         </>
       )}
     </div>

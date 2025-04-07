@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
   MapPin, 
-  Users
+  Users,
+  MoreHorizontal
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/utils/expenseCalculator";
@@ -16,6 +17,13 @@ import { useState } from "react";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
 import { getTripDetailUrl } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TripCardProps {
   trip: Trip;
@@ -24,6 +32,7 @@ interface TripCardProps {
   onEdit?: (trip: Trip) => void;
   onHide?: (id: string) => void;
   variant?: "default" | "compact";
+  hideOptions?: boolean;
 }
 
 export function TripCard({ 
@@ -32,7 +41,8 @@ export function TripCard({
   onComplete, 
   onEdit, 
   onHide,
-  variant = "default"
+  variant = "default",
+  hideOptions = false
 }: TripCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -89,12 +99,43 @@ export function TripCard({
     <>
       <Card 
         className={cn(
-          "overflow-hidden transition-all duration-300 group hover:shadow-md cursor-pointer",
+          "overflow-hidden transition-all duration-300 group hover:shadow-md cursor-pointer relative",
           trip.status === "completed" && "bg-muted/50",
           variant === "compact" && "h-full"
         )}
         onClick={handleCardClick}
       >
+        {!hideOptions && (
+          <div 
+            className="absolute top-2 right-2 z-10" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleEditTrip}>
+                  Edit Trip
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowCompleteDialog(true)}>
+                  Mark as Completed
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  Delete Trip
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         <CardContent className={cn(
           "p-6",
           variant === "compact" && "p-4"

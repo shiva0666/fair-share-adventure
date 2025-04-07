@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,13 +9,13 @@ import { getAllGroups, getGroupStats } from "@/services/groupService";
 import { CreateTripDialog } from "./CreateTripDialog";
 import { CreateGroupDialog } from "./CreateGroupDialog";
 import { formatCurrency } from "@/utils/expenseCalculator";
-import { format, parseISO } from "date-fns";
 import { User, Briefcase, DollarSign, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TripSearch } from "./TripSearch";
 import { GroupCard } from "./GroupCard";
 import { getTripDetailUrl, getGroupDetailUrl } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { TripCard } from "./TripCard";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
@@ -136,6 +137,31 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteTrip = async (tripId: string) => {
+    if (trips) {
+      const updatedTrips = trips.filter(trip => trip.id !== tripId);
+      setFilteredTrips(updatedTrips.filter(trip => {
+        if (activeTab === "active") return trip.status === "active";
+        if (activeTab === "completed") return trip.status === "completed";
+        return true;
+      }));
+    }
+  };
+
+  const handleCompleteTrip = async (tripId: string) => {
+    if (trips) {
+      const updatedTrips = trips.map(trip => 
+        trip.id === tripId ? { ...trip, status: "completed" as const } : trip
+      );
+      
+      setFilteredTrips(updatedTrips.filter(trip => {
+        if (activeTab === "active") return trip.status === "active";
+        if (activeTab === "completed") return trip.status === "completed";
+        return true;
+      }));
+    }
+  };
+
   const handleTripCreated = () => {
     refetchTrips();
     setShowCreateTripDialog(false);
@@ -148,9 +174,6 @@ export default function Dashboard() {
   
   const isLoading = isTripsLoading || isSummaryLoading || isGroupsLoading || isGroupStatsLoading;
   const hasError = tripsError || summaryError || groupsError;
-  
-  const totalTrips = summary?.totalTrips || 0;
-  const totalGroups = groupStats?.totalGroups || 0;
   
   return (
     <div className="p-6">
@@ -213,6 +236,8 @@ export default function Dashboard() {
               trips={filteredTrips} 
               loading={isLoading} 
               onCreateTrip={() => setShowCreateTripDialog(true)}
+              onDeleteTrip={handleDeleteTrip}
+              onCompleteTrip={handleCompleteTrip}
             />
           </TabsContent>
           
@@ -221,6 +246,8 @@ export default function Dashboard() {
               trips={filteredTrips} 
               loading={isLoading} 
               onCreateTrip={() => setShowCreateTripDialog(true)}
+              onDeleteTrip={handleDeleteTrip}
+              onCompleteTrip={handleCompleteTrip}
             />
           </TabsContent>
           
@@ -229,6 +256,8 @@ export default function Dashboard() {
               trips={filteredTrips} 
               loading={isLoading} 
               onCreateTrip={() => setShowCreateTripDialog(true)}
+              onDeleteTrip={handleDeleteTrip}
+              onCompleteTrip={handleCompleteTrip}
             />
           </TabsContent>
         </Tabs>
@@ -366,9 +395,11 @@ interface TripsGridProps {
   trips: Trip[] | undefined;
   loading: boolean;
   onCreateTrip: () => void;
+  onDeleteTrip: (id: string) => void;
+  onCompleteTrip: (id: string) => void;
 }
 
-function TripsGrid({ trips, loading, onCreateTrip }: TripsGridProps) {
+function TripsGrid({ trips, loading, onCreateTrip, onDeleteTrip, onCompleteTrip }: TripsGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -399,76 +430,15 @@ function TripsGrid({ trips, loading, onCreateTrip }: TripsGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {trips.map((trip) => (
-        <TripCard key={trip.id} trip={trip} />
+        <TripCard 
+          key={trip.id} 
+          trip={trip} 
+          onDelete={onDeleteTrip} 
+          onComplete={onCompleteTrip}
+        />
       ))}
       <CreateTripCard onCreateTrip={onCreateTrip} />
     </div>
-  );
-}
-
-interface TripCardProps {
-  trip: Trip;
-}
-
-function TripCard({ trip }: TripCardProps) {
-  const totalExpenses = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const formatDate = (dateString: string) => format(parseISO(dateString), "MMM d, yyyy");
-  const navigate = useNavigate();
-  
-  return (
-    <Card className="transition-all hover:shadow-md cursor-pointer" onClick={() => navigate(getTripDetailUrl(trip.id))}>
-      <CardContent className="p-0">
-        <div className="block p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-bold text-lg">{trip.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-              </p>
-            </div>
-            <div className={`px-2 py-1 rounded-md text-xs font-medium ${
-              trip.status === "active" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
-            }`}>
-              {trip.status === "active" ? "Active" : "Completed"}
-            </div>
-          </div>
-          
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total Expenses</span>
-              <span className="font-medium">{formatCurrency(totalExpenses)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Participants</span>
-              <span className="font-medium">{trip.participants.length}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Expense Count</span>
-              <span className="font-medium">{trip.expenses.length}</span>
-            </div>
-          </div>
-          
-          {trip.participants.length > 0 && (
-            <div className="mt-4 flex -space-x-2">
-              {trip.participants.slice(0, 5).map((participant, index) => (
-                <div 
-                  key={participant.id}
-                  className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium border-2 border-background"
-                  title={participant.name}
-                >
-                  {participant.name.charAt(0).toUpperCase()}
-                </div>
-              ))}
-              {trip.participants.length > 5 && (
-                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs font-medium border-2 border-background">
-                  +{trip.participants.length - 5}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

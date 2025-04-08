@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -243,7 +242,7 @@ export function EditExpenseDialog({
     }
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.Event) => {
     e.preventDefault();
     
     if (!amount || !category || !name || !date || paidByIds.length === 0 || splitBetween.length === 0) {
@@ -490,6 +489,7 @@ export function EditExpenseDialog({
                 </div>
               )}
             </div>
+            
             <div>
               <Label>Split Between</Label>
               <ScrollArea className="h-24 rounded-md border">

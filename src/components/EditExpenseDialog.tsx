@@ -242,7 +242,7 @@ export function EditExpenseDialog({
     }
   };
 
-  const handleFormSubmit = async (e: React.Event) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!amount || !category || !name || !date || paidByIds.length === 0 || splitBetween.length === 0) {

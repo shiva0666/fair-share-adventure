@@ -237,12 +237,32 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ trip, open, 
   const handleSplitBetweenChange = (participantId: string, checked: boolean) => {
     if (checked) {
       setSplitBetween(prev => [...prev, participantId]);
+      
+      if (splitMethod === "equal" && amount) {
+        const newSplitBetween = [...splitBetween, participantId];
+        const equalAmount = parseFloat(amount) / newSplitBetween.length;
+        const newSplitAmounts: Record<string, number> = {};
+        newSplitBetween.forEach(id => {
+          newSplitAmounts[id] = equalAmount;
+        });
+        setSplitAmounts(newSplitAmounts);
+      }
     } else {
       setSplitBetween(prev => prev.filter(id => id !== participantId));
       
       if (splitAmounts[participantId]) {
         const { [participantId]: _, ...rest } = splitAmounts;
         setSplitAmounts(rest);
+        
+        if (splitMethod === "equal" && splitBetween.length > 1 && amount) {
+          const newSplitBetween = splitBetween.filter(id => id !== participantId);
+          const equalAmount = parseFloat(amount) / newSplitBetween.length;
+          const newSplitAmounts: Record<string, number> = {};
+          newSplitBetween.forEach(id => {
+            newSplitAmounts[id] = equalAmount;
+          });
+          setSplitAmounts(newSplitAmounts);
+        }
       }
     }
   };

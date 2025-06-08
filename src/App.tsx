@@ -15,6 +15,8 @@ import Settings from "./pages/Settings";
 import ProfileSettings from "./pages/ProfileSettings";
 import TripsPage from "./pages/TripsPage";
 import GroupsPage from "./pages/GroupsPage";
+import Recommendations from "./pages/Recommendations";
+import SupportUs from "./pages/SupportUs";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -68,6 +70,22 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <GroupDetail />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/recommendations" 
+                  element={
+                    <ProtectedRoute>
+                      <Recommendations />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/support-us" 
+                  element={
+                    <ProtectedRoute>
+                      <SupportUs />
                     </ProtectedRoute>
                   } 
                 />

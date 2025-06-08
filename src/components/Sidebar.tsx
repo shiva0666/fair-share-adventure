@@ -1,3 +1,4 @@
+
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,9 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
-  UserCircle
+  UserCircle,
+  Lightbulb,
+  Heart
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,7 +55,7 @@ export function Sidebar({ className }: SidebarProps) {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
-  // Define sidebar menu items - removed Settings from this list
+  // Define sidebar menu items - added Recommendations and Support Us
   const menuItems = [
     {
       name: "Dashboard",
@@ -73,6 +76,16 @@ export function Sidebar({ className }: SidebarProps) {
       name: "Profile",
       icon: <UserCircle className="h-5 w-5" />,
       path: "/profile",
+    },
+    {
+      name: "Recommendations",
+      icon: <Lightbulb className="h-5 w-5" />,
+      path: "/recommendations",
+    },
+    {
+      name: "Support Us",
+      icon: <Heart className="h-5 w-5" />,
+      path: "/support-us",
     },
     {
       name: "Help",
@@ -134,6 +147,7 @@ export function Sidebar({ className }: SidebarProps) {
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                 )}
                 onClick={() => isMobile && setSidebarOpen(false)}
+                aria-label={item.name}
               >
                 {item.icon}
                 <span>{item.name}</span>
@@ -184,6 +198,7 @@ export function Sidebar({ className }: SidebarProps) {
                 : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
             )}
             title={collapsed ? item.name : undefined}
+            aria-label={item.name}
           >
             {item.icon}
             {!collapsed && <span>{item.name}</span>}

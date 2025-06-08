@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,6 +10,14 @@ import { useNavigate } from "react-router-dom";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -18,10 +25,17 @@ const loginSchema = z.object({
   rememberMe: z.boolean().optional(),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+});
+
 type LoginFormValues = z.infer<typeof loginSchema>;
+type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -94,6 +108,45 @@ const LoginForm = () => {
     }
   };
 
+  const {
+    register: registerForgotPassword,
+    handleSubmit: handleSubmitForgotPassword,
+    formState: { errors: forgotPasswordErrors },
+    reset: resetForgotPassword,
+  } = useForm<ForgotPasswordFormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  const onForgotPasswordSubmit = async (data: ForgotPasswordFormValues) => {
+    setIsForgotPasswordLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // This is where you would normally make your API call to send reset email
+      console.log("Sending password reset email to:", data.email);
+      
+      toast({
+        title: "Password reset email sent",
+        description: "If an account with this email exists, you will receive a password reset link.",
+      });
+      
+      setIsForgotPasswordOpen(false);
+      resetForgotPassword();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsForgotPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col space-y-2 text-center">
@@ -124,9 +177,52 @@ const LoginForm = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
-            <Button variant="link" className="p-0 h-auto text-sm text-primary">
-              Forgot Password?
-            </Button>
+            <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
+              <DialogTrigger asChild>
+                <Button variant="link" className="p-0 h-auto text-sm text-primary">
+                  Forgot Password?
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Reset Password</DialogTitle>
+                  <DialogDescription>
+                    Enter your email address and we'll send you a link to reset your password.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmitForgotPassword(onForgotPasswordSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="name@example.com"
+                        className="pl-10"
+                        {...registerForgotPassword("email")}
+                      />
+                    </div>
+                    {forgotPasswordErrors.email && (
+                      <p className="text-sm text-destructive">{forgotPasswordErrors.email.message}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setIsForgotPasswordOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="flex-1" disabled={isForgotPasswordLoading}>
+                      {isForgotPasswordLoading ? "Sending..." : "Send Reset Link"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
           <PasswordInput
             id="password"

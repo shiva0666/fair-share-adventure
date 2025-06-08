@@ -19,13 +19,7 @@ const Auth = () => {
         </Link>
         
         <Card className="w-full border-border/40 shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">DiviTrip</CardTitle>
-            <CardDescription className="text-center">
-              {activeTab === "login" ? "Sign in to your account" : "Create a new account"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <Tabs defaultValue="login" onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Login</TabsTrigger>
@@ -35,7 +29,7 @@ const Auth = () => {
                 <LoginForm />
               </TabsContent>
               <TabsContent value="signup">
-                <SignupForm />
+                <SignupForm onToggleForm={() => setActiveTab("login")} />
               </TabsContent>
             </Tabs>
           </CardContent>

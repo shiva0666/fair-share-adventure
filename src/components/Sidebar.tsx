@@ -11,7 +11,8 @@ import {
   ChevronRight,
   UserCircle,
   Lightbulb,
-  Heart
+  Heart,
+  Megaphone
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -55,7 +56,7 @@ export function Sidebar({ className }: SidebarProps) {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
-  // Define sidebar menu items - added Recommendations and Support Us
+  // Define sidebar menu items - added Recommendations, Support Us, and Advertising
   const menuItems = [
     {
       name: "Dashboard",
@@ -86,6 +87,11 @@ export function Sidebar({ className }: SidebarProps) {
       name: "Support Us",
       icon: <Heart className="h-5 w-5" />,
       path: "/support-us",
+    },
+    {
+      name: "Advertising",
+      icon: <Megaphone className="h-5 w-5" />,
+      path: "/advertising",
     },
     {
       name: "Help",

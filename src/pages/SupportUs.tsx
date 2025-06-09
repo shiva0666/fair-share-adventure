@@ -7,9 +7,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Coffee, Star, Gift, ExternalLink, Users } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const SupportUs = () => {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+
+  const handleSupportClick = (optionTitle: string) => {
+    toast({
+      title: "Thank you for your support!",
+      description: `You've chosen to support us with ${optionTitle}. Redirecting to payment page...`,
+    });
+    // In a real app, you would redirect to payment processor
+    console.log(`Support option selected: ${optionTitle}`);
+  };
 
   const supportOptions = [
     {
@@ -97,7 +108,11 @@ const SupportUs = () => {
                       <div className="text-2xl font-bold text-primary mt-2">{option.amount}</div>
                     </CardHeader>
                     <CardContent>
-                      <Button className="w-full" variant={option.popular ? "default" : "outline"}>
+                      <Button 
+                        className="w-full" 
+                        variant={option.popular ? "default" : "outline"}
+                        onClick={() => handleSupportClick(option.title)}
+                      >
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Support Now
                       </Button>

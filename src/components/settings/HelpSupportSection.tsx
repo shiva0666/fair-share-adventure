@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Mail, Phone, Clock } from "lucide-react";
 
 const faqs = [
   {
@@ -66,6 +66,51 @@ export const HelpSupportSection = () => {
   
   return (
     <div className="space-y-6">
+      {/* Company Contact Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact Information</CardTitle>
+          <CardDescription>
+            Get in touch with our team directly
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <Mail className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Email Support</p>
+              <a 
+                href="mailto:support@splittos.com" 
+                className="text-primary hover:underline"
+              >
+                support@splittos.com
+              </a>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Phone className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Phone Support</p>
+              <a 
+                href="tel:+911234567890" 
+                className="text-primary hover:underline"
+              >
+                +91-123-456-7890
+              </a>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Clock className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Business Hours</p>
+              <p className="text-muted-foreground">Monday - Friday, 10:00 AM to 6:00 PM IST</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
       <Card>
         <CardHeader>
           <CardTitle>Frequently Asked Questions</CardTitle>

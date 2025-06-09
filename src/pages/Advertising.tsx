@@ -1,11 +1,10 @@
-
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Star, MapPin, Camera, Plane, Hotel, Car, Sparkles, TrendingUp, Gift2 } from "lucide-react";
+import { ExternalLink, Star, MapPin, Camera, Plane, Hotel, Car, Sparkles, TrendingUp, Gift } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const Advertising = () => {
@@ -172,7 +171,7 @@ const Advertising = () => {
                     
                     {/* Floating elements */}
                     <div className="absolute top-6 right-6 animate-bounce">
-                      <Gift2 className="h-8 w-8 text-white/80" />
+                      <Gift className="h-8 w-8 text-white/80" />
                     </div>
                     
                     <div className="relative z-10 h-full flex items-center justify-center text-center text-white p-6">

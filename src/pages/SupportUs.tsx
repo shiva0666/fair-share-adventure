@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
@@ -20,6 +19,62 @@ const SupportUs = () => {
     });
     // In a real app, you would redirect to payment processor
     console.log(`Support option selected: ${optionTitle}`);
+  };
+
+  const handleShareSplittos = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Splittos - Expense Splitting Made Easy',
+        text: 'Check out Splittos, the best app for splitting expenses with friends and groups!',
+        url: window.location.origin,
+      }).then(() => {
+        toast({
+          title: "Thanks for sharing!",
+          description: "You've helped spread the word about Splittos.",
+        });
+      }).catch((error) => {
+        console.log('Error sharing:', error);
+        handleFallbackShare();
+      });
+    } else {
+      handleFallbackShare();
+    }
+  };
+
+  const handleFallbackShare = () => {
+    const shareText = `Check out Splittos, the best app for splitting expenses with friends and groups! ${window.location.origin}`;
+    
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareText).then(() => {
+        toast({
+          title: "Link copied!",
+          description: "Share link has been copied to your clipboard.",
+        });
+      }).catch(() => {
+        toast({
+          title: "Share Splittos",
+          description: "Copy this link to share: " + window.location.origin,
+        });
+      });
+    } else {
+      toast({
+        title: "Share Splittos",
+        description: "Copy this link to share: " + window.location.origin,
+      });
+    }
+  };
+
+  const handleSendFeedback = () => {
+    const subject = encodeURIComponent("Feedback for Splittos");
+    const body = encodeURIComponent("Hi Splittos team,\n\nI have some feedback about the app:\n\n");
+    const mailtoLink = `mailto:support@splittos.com?subject=${subject}&body=${body}`;
+    
+    window.open(mailtoLink, '_blank');
+    
+    toast({
+      title: "Feedback form opened",
+      description: "Your email client should open with a pre-filled feedback email.",
+    });
   };
 
   const supportOptions = [
@@ -182,7 +237,7 @@ const SupportUs = () => {
                       <p className="text-sm text-muted-foreground mb-3">
                         Tell your friends about Splittos and help us grow our community.
                       </p>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={handleShareSplittos}>
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Share Splittos
                       </Button>
@@ -192,7 +247,7 @@ const SupportUs = () => {
                       <p className="text-sm text-muted-foreground mb-3">
                         Your suggestions help us build better features and improve the app.
                       </p>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={handleSendFeedback}>
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Send Feedback
                       </Button>

@@ -18,6 +18,7 @@ import GroupsPage from "./pages/GroupsPage";
 import Recommendations from "./pages/Recommendations";
 import SupportUs from "./pages/SupportUs";
 import Advertising from "./pages/Advertising";
+import Help from "./pages/Help";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -95,6 +96,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Advertising />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/help" 
+                  element={
+                    <ProtectedRoute>
+                      <Help />
                     </ProtectedRoute>
                   } 
                 />

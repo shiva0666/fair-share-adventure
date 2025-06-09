@@ -1,10 +1,11 @@
+
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Star, MapPin, Camera, Plane, Hotel, Car, Sparkles, TrendingUp, Gift } from "lucide-react";
+import { ExternalLink, Star, MapPin, Camera, Plane, Hotel, Car, Sparkles, TrendingUp, Gift, Utensils, Music, ShoppingBag, Gamepad2, Heart, Shield, Wifi, Phone, CreditCard } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const Advertising = () => {
@@ -19,7 +20,7 @@ const Advertising = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Banner ads data
+  // Enhanced Banner ads data with more options
   const bannerAds = [
     {
       id: 1,
@@ -47,10 +48,28 @@ const Advertising = () => {
       cta: "Find Flights",
       link: "#",
       gradient: "from-orange-500 via-red-500 to-pink-600"
+    },
+    {
+      id: 4,
+      title: "Epic Group Adventures",
+      description: "Discover amazing destinations with friends",
+      image: "/placeholder.svg",
+      cta: "Start Adventure",
+      link: "#",
+      gradient: "from-purple-500 via-pink-500 to-red-500"
+    },
+    {
+      id: 5,
+      title: "Weekend Getaway Deals",
+      description: "Perfect short trips for busy schedules",
+      image: "/placeholder.svg",
+      cta: "Book Weekend",
+      link: "#",
+      gradient: "from-green-500 via-blue-500 to-purple-500"
     }
   ];
 
-  // Sponsored cards data with enhanced styling
+  // Expanded sponsored cards data
   const sponsoredCards = [
     {
       id: 1,
@@ -99,10 +118,58 @@ const Advertising = () => {
       link: "#",
       category: "Adventure",
       color: "from-amber-400 to-orange-600"
+    },
+    {
+      id: 5,
+      title: "Wine Tasting Tours",
+      description: "Explore world-class vineyards with exclusive group tastings.",
+      price: "From $89/person",
+      rating: 4.9,
+      reviews: 892,
+      image: "/placeholder.svg",
+      link: "#",
+      category: "Culinary",
+      color: "from-purple-400 to-pink-600"
+    },
+    {
+      id: 6,
+      title: "Safari Adventures Africa",
+      description: "Witness the Big Five in their natural habitat with expert guides.",
+      price: "From $1299/person",
+      rating: 4.8,
+      reviews: 445,
+      image: "/placeholder.svg",
+      link: "#",
+      category: "Wildlife",
+      color: "from-yellow-400 to-red-600"
+    },
+    {
+      id: 7,
+      title: "Music Festival Packages",
+      description: "VIP access to the hottest music festivals worldwide.",
+      price: "From $350/person",
+      rating: 4.7,
+      reviews: 1678,
+      image: "/placeholder.svg",
+      link: "#",
+      category: "Entertainment",
+      color: "from-pink-400 to-purple-600"
+    },
+    {
+      id: 8,
+      title: "Cooking Class Getaways",
+      description: "Learn authentic cuisine from local chefs in amazing locations.",
+      price: "From $179/person",
+      rating: 4.6,
+      reviews: 723,
+      image: "/placeholder.svg",
+      link: "#",
+      category: "Culinary",
+      color: "from-orange-400 to-red-600"
     }
   ];
 
-  // Enhanced affiliate offers
+  // Expanded affiliate offers
   const affiliateOffers = [
     {
       id: 1,
@@ -110,7 +177,7 @@ const Advertising = () => {
       description: "Protect your group trip with comprehensive travel insurance",
       discount: "15% OFF",
       provider: "SafeTravel Insurance",
-      icon: <Star className="h-6 w-6" />,
+      icon: <Shield className="h-6 w-6" />,
       link: "#",
       color: "from-purple-400 to-purple-600"
     },
@@ -133,6 +200,72 @@ const Advertising = () => {
       icon: <Camera className="h-6 w-6" />,
       link: "#",
       color: "from-green-400 to-green-600"
+    },
+    {
+      id: 4,
+      title: "International SIM Cards",
+      description: "Stay connected worldwide with affordable data plans",
+      discount: "30% OFF",
+      provider: "GlobalConnect",
+      icon: <Phone className="h-6 w-6" />,
+      link: "#",
+      color: "from-indigo-400 to-indigo-600"
+    },
+    {
+      id: 5,
+      title: "Travel Credit Cards",
+      description: "Earn points and get travel rewards with every purchase",
+      discount: "No Annual Fee",
+      provider: "TravelRewards Bank",
+      icon: <CreditCard className="h-6 w-6" />,
+      link: "#",
+      color: "from-emerald-400 to-emerald-600"
+    },
+    {
+      id: 6,
+      title: "Portable WiFi Devices",
+      description: "High-speed internet access for your entire group",
+      discount: "40% OFF",
+      provider: "WiFiToGo",
+      icon: <Wifi className="h-6 w-6" />,
+      link: "#",
+      color: "from-cyan-400 to-cyan-600"
+    }
+  ];
+
+  // New section: Quick deals
+  const quickDeals = [
+    {
+      id: 1,
+      title: "Last Minute Hotel Deals",
+      description: "Up to 60% off tonight's stay",
+      icon: <Hotel className="h-5 w-5" />,
+      discount: "60% OFF",
+      color: "from-red-500 to-pink-500"
+    },
+    {
+      id: 2,
+      title: "Restaurant Group Bookings",
+      description: "Free appetizers for groups of 8+",
+      icon: <Utensils className="h-5 w-5" />,
+      discount: "Free Apps",
+      color: "from-orange-500 to-red-500"
+    },
+    {
+      id: 3,
+      title: "Entertainment Tickets",
+      description: "Group discounts on shows & events",
+      icon: <Music className="h-5 w-5" />,
+      discount: "25% OFF",
+      color: "from-purple-500 to-pink-500"
+    },
+    {
+      id: 4,
+      title: "Shopping Mall Vouchers",
+      description: "Exclusive group shopping perks",
+      icon: <ShoppingBag className="h-5 w-5" />,
+      discount: "15% OFF",
+      color: "from-blue-500 to-cyan-500"
     }
   ];
 
@@ -160,6 +293,28 @@ const Advertising = () => {
                 <span className="text-sm font-medium text-green-600">New deals added weekly!</span>
               </div>
             </div>
+
+            {/* Quick Deals Strip */}
+            <section className="mb-12">
+              <div className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-xl p-6 border border-primary/20">
+                <h2 className="text-xl font-bold text-center mb-6 flex items-center justify-center gap-2">
+                  <Gift className="h-6 w-6 text-primary" />
+                  Flash Deals - Limited Time Only!
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {quickDeals.map((deal) => (
+                    <div key={deal.id} className="text-center p-4 bg-white/50 backdrop-blur-sm rounded-lg border border-white/20 hover:scale-105 transition-transform">
+                      <div className={`w-12 h-12 bg-gradient-to-r ${deal.color} rounded-full flex items-center justify-center mx-auto mb-3 text-white`}>
+                        {deal.icon}
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1">{deal.title}</h3>
+                      <p className="text-xs text-muted-foreground mb-2">{deal.description}</p>
+                      <Badge className="bg-red-500 text-white text-xs">{deal.discount}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
 
             {/* Enhanced Banner Ads Section */}
             <section className="mb-16">
@@ -221,7 +376,7 @@ const Advertising = () => {
                 <h2 className="text-3xl font-bold mb-4">Sponsored Travel Experiences</h2>
                 <p className="text-muted-foreground">Handpicked adventures for unforgettable group memories</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {sponsoredCards.map((card, index) => (
                   <Card 
                     key={card.id} 
@@ -292,7 +447,7 @@ const Advertising = () => {
                 <h2 className="text-3xl font-bold mb-4">Exclusive Partner Offers</h2>
                 <p className="text-muted-foreground">Special discounts from our trusted partners</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {affiliateOffers.map((offer, index) => (
                   <Card 
                     key={offer.id} 
